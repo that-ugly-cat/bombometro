@@ -478,7 +478,7 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
     if hour < 9 or hour > 19 or t_sc < 35 or shortwave < 120 or sunshine < 600:
         regime = "off"
     elif cloud_mid >= 85:
-        regime = "tappo"
+        regime = "cap"
     elif t_sc >= 55:
         if   spread >= 9 and cloud_low <= 20 and mean_rh <= 45:
             regime = "blue"
@@ -487,7 +487,7 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
         else:
             regime = "blue" if spread > 8 else "cumulus"
     else:
-        regime = "tappo" if cloud_mid >= 70 else "off"
+        regime = "cap" if cloud_mid >= 70 else "off"
 
     active = (9 <= hour <= 19 and t_sc >= 55 and shortwave >= 180
               and sunshine >= 900 and cloud_mid < 85
@@ -509,7 +509,7 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
     reasons.append({
         "blue":   "blue thermals likely",
         "cumulus":"cumulus likely",
-        "tappo":  "clouds likely capping development",
+        "cap":    "clouds likely capping development",
     }.get(regime, "little thermal activity expected"))
 
     return {
@@ -555,7 +555,7 @@ def risk_score(row: Dict[str, Any], site: SiteConfig) -> Tuple[float, List[str]]
     if hum_risk >= 75:      reasons.append("humid upper levels")
     if wjr >= 65:           reasons.append("wind increasing rapidly")
     elif wjr >= 35:         reasons.append("wind strengthening")
-    if dw925 >= 5:          reasons.append("decollo-level wind rising")
+    if dw925 >= 5:          reasons.append("launch-level wind rising")
     elif dg10 >= 5:         reasons.append("gusts rising")
 
     return round(score, 1), reasons
@@ -651,7 +651,7 @@ def day_summary(evaluated_hours: List[Dict[str, Any]], day: str) -> Dict[str, An
         mr   = safe_mean([r["risk_score"]  for r in nv]) if nv else None
         tag  = ("foehn"     if mf and mf > 75 else
                 "technical" if mr and mr > 60 else
-                "capped"    if most_common_nn([r.get("thermal_regime") for r in nv]) == "tappo" else
+                "capped"    if most_common_nn([r.get("thermal_regime") for r in nv]) == "cap" else
                 "short")
         return {"day": day, "verdict": "bad idea", "tag": tag,
                 "best_window": None, "best_window_duration_h": 0,
@@ -725,7 +725,7 @@ def day_summary(evaluated_hours: List[Dict[str, Any]], day: str) -> Dict[str, An
     # ── tag ───────────────────────────────────────────────────────────────────
     dr  = best["dominant_regime"]
     tag = ("short" if dur <= 2 else "stable")
-    tag = {"blue": "blue", "cumulus": "cumulus", "tappo": "capped"}.get(dr, tag)
+    tag = {"blue": "blue", "cumulus": "cumulus", "cap": "capped"}.get(dr, tag)
     if mr  > 60: tag = "technical"
     if mfn > 75: tag = "foehn"
 
