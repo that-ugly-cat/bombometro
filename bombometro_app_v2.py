@@ -177,9 +177,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     cc_high   = [_raw(h, rbt, "cloud_cover_high")    for h in hrs]
 
     # ── thermal raw ──
-    shortwave_vals = [_raw(h, rbt, "shortwave_radiation")                        for h in hrs]
-    cape_vals      = [_raw(h, rbt, "cape")                                       for h in hrs]
-    spread_vals    = [_raw(h, rbt, "temperature_2m") - _raw(h, rbt, "dew_point_2m") for h in hrs]
+    shortwave_vals  = [_raw(h, rbt, "shortwave_radiation")                           for h in hrs]
+    lapse_rate_vals = [_raw(h, rbt, "temperature_2m") - _raw(h, rbt, "temperature_700hPa") for h in hrs]
+    spread_vals     = [_raw(h, rbt, "temperature_2m") - _raw(h, rbt, "dew_point_2m")       for h in hrs]
 
     # ── compass labels ──
     lbl_10m  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_10m,  wind_10m)]
@@ -407,15 +407,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
     fig.data[-1].yaxis = "y11"   # dedicated spread axis
 
-    # CAPE — secondary y, red fill
+    # lapse rate (T2m − T700) — secondary y, orange line
     fig.add_trace(
         go.Scatter(
-            x=lbl, y=cape_vals, name="CAPE (J/kg)",
-            fill="tozeroy", fillcolor="rgba(239,83,80,0.22)",
-            line=dict(color="#EF5350", width=1.5),
+            x=lbl, y=lapse_rate_vals, name="T2m−T700 (°C)",
+            fill="tozeroy", fillcolor="rgba(255,167,38,0.18)",
+            line=dict(color="#FFA726", width=1.8),
             mode="lines",
             legend="legend3",
-            hovertemplate="CAPE: <b>%{y:.0f}</b> J/kg<extra></extra>",
+            hovertemplate="lapse rate: <b>%{y:.1f}</b> °C<extra></extra>",
         ),
         row=3, col=1, secondary_y=True,
     )
@@ -604,8 +604,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
     fig.update_yaxes(
         secondary_y=True, row=3, col=1,
-        range=[0, 800], showgrid=False,
-        title_text="CAPE J/kg",
+        range=[0, 30], showgrid=False,
+        title_text="lapse rate °C",
         title_font=dict(color="#EF5350", size=10),
         tickfont=dict(color="#EF5350", size=9),
     )
