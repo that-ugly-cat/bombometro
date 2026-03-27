@@ -434,47 +434,25 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # ROW 5 — foehn pressure gradient
     # ─────────────────────────────────────────────────────────────────────────
 
-    # bar colors: warm gradient for positive (foehn), cool for negative (anti-foehn)
-    _thresh   = site.foehn_delta_p_max_hpa
-    _veto_thr = _thresh * 1.20
-
-    def _dp_color(v: float) -> str:
-        if v >= _veto_thr:
-            return "rgba(255,87,34,0.90)"    # deep red-orange — veto zone
-        elif v >= _thresh * 0.6:
-            return "rgba(255,167,38,0.80)"   # orange — warning zone
-        elif v > 0:
-            return "rgba(255,213,79,0.55)"   # yellow — mild positive
-        elif v < 0:
-            return "rgba(100,181,246,0.55)"  # light blue — anti-foehn / blocking
-        return "rgba(120,120,120,0.40)"      # grey — neutral / no data
-
-    dp_colors = [_dp_color(v) for v in dp_vals]
+    _thresh = site.foehn_delta_p_max_hpa
 
     fig.add_trace(
-        go.Bar(
-            x=lbl, y=dp_vals, name="Δp N−S",
-            marker=dict(color=dp_colors, line=dict(width=0)),
+        go.Scatter(
+            x=lbl, y=dp_vals, name="Δp N−S (hPa)",
+            mode="lines",
+            line=dict(color="#FFA726", width=2.0),
+            fill="tozeroy", fillcolor="rgba(255,167,38,0.15)",
             legend="legend5",
             hovertemplate="Δp (N−S): <b>%{y:+.1f}</b> hPa<extra></extra>",
         ),
         row=5, col=1,
     )
 
-    # threshold lines (both sides)
-    for y_val, color, label in [
-        ( _thresh,  "#FFA726", f"+{_thresh:.0f} hPa  score max"),
-        (-_thresh,  "#FFA726", f"−{_thresh:.0f} hPa"),
-        ( _veto_thr, "#EF5350", f"+{_veto_thr:.0f} hPa  veto"),
-        (-_veto_thr, "#EF5350", f"−{_veto_thr:.0f} hPa"),
-    ]:
-        fig.add_hline(
-            y=y_val, row=5, col=1,
-            line=dict(color=color, dash="dot", width=1.2),
-            annotation_text=label,
-            annotation_font=dict(color=color, size=9),
-            annotation_position="top right" if y_val > 0 else "bottom right",
-        )
+    # single positive threshold line, no label
+    fig.add_hline(
+        y=_thresh, row=5, col=1,
+        line=dict(color="#FFA726", dash="dot", width=1.2),
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # ROW 6 — wind by level
