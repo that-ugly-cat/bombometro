@@ -930,56 +930,73 @@ if fig:
 else:
     st.warning(f"No data for {d}.")
 
-with st.expander("🔍 Hour-by-hour detail"):
-    day_hrs = [h for h in evaluated
+_detail_hrs = [h for h in evaluated
                if h["time"].startswith(d) and 6 <= int(h["time"][11:13]) <= 20]
-    rbt = {r["time"]: r for r in rows}
+_detail_rbt  = {r["time"]: r for r in rows}
 
-    # ── Table 1: status + all alerts / reasons ────────────────────────────────
-    def _all_reasons(h: dict) -> str:
-        parts: list = []
-        if h["veto"]:
-            parts.extend(h.get("veto_reasons") or [h["veto_type"] or "?"])
-            fr = h.get("foehn_reasons") or []
-            if fr:
-                parts.extend(fr)
-        else:
-            for key in ("launch_reasons", "upper_wind_reasons",
-                        "thermal_reasons", "risk_reasons", "foehn_reasons"):
-                parts.extend(h.get(key) or [])
-            rpen = _v(h.get("risk_penalty"))
-            fpen = _v(h.get("foehn_penalty"))
-            if rpen > 0: parts.append(f"risk penalty −{rpen:.1f}")
-            if fpen > 0: parts.append(f"foehn penalty −{fpen:.1f}")
-        return " · ".join(str(p) for p in parts) if parts else ""
+# ── Expander 1: status + all alerts / reasons ─────────────────────────────────
+def _all_reasons(h: dict) -> str:
+    parts: list = []
+    if h["veto"]:
+        parts.extend(h.get("veto_reasons") or [h["veto_type"] or "?"])
+        fr = h.get("foehn_reasons") or []
+        if fr:
+            parts.extend(fr)
+    else:
+        for key in ("launch_reasons", "upper_wind_reasons",
+                    "thermal_reasons", "risk_reasons", "foehn_reasons"):
+            parts.extend(h.get(key) or [])
+        rpen = _v(h.get("risk_penalty"))
+        fpen = _v(h.get("foehn_penalty"))
+        if rpen > 0: parts.append(f"risk penalty −{rpen:.1f}")
+        if fpen > 0: parts.append(f"foehn penalty −{fpen:.1f}")
+    return " · ".join(str(p) for p in parts) if parts else ""
 
+with st.expander("🔍 Status & alerts"):
     df_status = pd.DataFrame([{
-        "time":   h["time"][11:13],
-        "status": ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
-        "fly":    f"{_v(h['fly_score']):.0f}" if not h["veto"] else "—",
+        "time":             h["time"][11:13],
+        "status":           ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
         "reasons / alerts": _all_reasons(h),
-    } for h in day_hrs])
-    st.caption("Status & alerts")
+    } for h in _detail_hrs])
     st.dataframe(df_status, use_container_width=True, hide_index=True)
 
-    # ── Table 2: wind by level ────────────────────────────────────────────────
-    def _wlbl(h, key_spd, key_dir) -> str:
-        row = rbt.get(h["time"], {})
-        spd = row.get(key_spd)
-        drn = row.get(key_dir)
-        if spd is None:
-            return "—"
-        dir_s = f"{wind_dir_label(drn)} " if drn is not None else ""
-        return f"{dir_s}{spd:.0f}"
+# ── Expander 2: wind by level ─────────────────────────────────────────────────
+def _wlbl(h, key_spd, key_dir) -> str:
+    row = _detail_rbt.get(h["time"], {})
+    spd = row.get(key_spd)
+    drn = row.get(key_dir)
+    if spd is None:
+        return "—"
+    dir_s = f"{wind_dir_label(drn)} " if drn is not None else ""
+    return f"{dir_s}{spd:.0f}"
 
+def _wind_cell_color(val: str) -> str:
+    """Background colour for a wind cell based on the speed component."""
+    try:
+        spd = float(str(val).split()[-1])
+    except (ValueError, IndexError):
+        return ""
+    if spd < 15:
+        return "background-color: rgba(76,175,80,0.30)"    # calm — green
+    if spd < 25:
+        return "background-color: rgba(255,235,59,0.30)"   # moderate — yellow
+    if spd < 35:
+        return "background-color: rgba(255,152,0,0.35)"    # strong — orange
+    return     "background-color: rgba(244,67,54,0.40)"    # very strong — red
+
+_wind_cols = ["10m", "gusts", "925 hPa", "850 hPa", "800 hPa", "700 hPa"]
+
+with st.expander("💨 Wind by level"):
     df_wind = pd.DataFrame([{
-        "time":     h["time"][11:13],
-        "10m":      _wlbl(h, "wind_speed_10m",     "wind_direction_10m"),
-        "gusts":    f"{rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}",
-        "925 hPa":  _wlbl(h, "wind_speed_925hPa",  "wind_direction_925hPa"),
-        "850 hPa":  _wlbl(h, "wind_speed_850hPa",  "wind_direction_850hPa"),
-        "800 hPa":  _wlbl(h, "wind_speed_800hPa",  "wind_direction_800hPa"),
-        "700 hPa":  _wlbl(h, "wind_speed_700hPa",  "wind_direction_700hPa"),
-    } for h in day_hrs])
-    st.caption("Wind by level (dir + km/h)")
-    st.dataframe(df_wind, use_container_width=True, hide_index=True)
+        "time":    h["time"][11:13],
+        "10m":     _wlbl(h, "wind_speed_10m",    "wind_direction_10m"),
+        "gusts":   f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}",
+        "925 hPa": _wlbl(h, "wind_speed_925hPa", "wind_direction_925hPa"),
+        "850 hPa": _wlbl(h, "wind_speed_850hPa", "wind_direction_850hPa"),
+        "800 hPa": _wlbl(h, "wind_speed_800hPa", "wind_direction_800hPa"),
+        "700 hPa": _wlbl(h, "wind_speed_700hPa", "wind_direction_700hPa"),
+    } for h in _detail_hrs])
+    st.dataframe(
+        df_wind.style.map(_wind_cell_color, subset=_wind_cols),
+        use_container_width=True, hide_index=True,
+    )
