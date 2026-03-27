@@ -541,11 +541,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
-    # row_heights=[0.2,0.2,0.2,0.2,0.1,0.2] (rel, sum=1.1), spacing=0.07, 5 gaps.
-    # Normalised heights × plot_area (=0.65): rows 1-4,6 ≈ 0.1182 each, row 5 ≈ 0.0591.
-    # Panel tops (bottom→top): row6=0.1182, row5=0.2473, row4=0.4355,
-    #                           row3=0.6237, row2=0.8119, row1=1.0
-    # Legends: yanchor="bottom", y = panel_top + 0.005 → floats at gap base, below title.
+    # row_heights=[0.2]*6, vertical_spacing=0.07, 5 gaps → plot_area=0.65, each row=0.1083.
+    # Panel tops: row1=1.000, row2=0.822, row3=0.643, row4=0.465, row5=0.287, row6=0.108.
+    # Legends  : yanchor="bottom", y = panel_top + 0.005 → bottom of legend sits at gap base.
+    # Titles   : annotation loop adds +0.035 → mid-gap (0.035 = half of 0.07 spacing).
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
@@ -562,12 +561,12 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin (above row 1)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.817),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.629),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.441),  # gap above row 4
-        legend5=dict(**_LEG, yanchor="bottom", y=0.252),  # gap above row 5 (foehn)
-        legend6=dict(**_LEG, yanchor="bottom", y=0.123),  # gap above row 6 (wind)
+        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin  (above row 1)
+        legend2=dict(**_LEG, yanchor="bottom", y=0.827),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.648),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.470),  # gap above row 4
+        legend5=dict(**_LEG, yanchor="bottom", y=0.292),  # gap above row 5 (foehn)
+        legend6=dict(**_LEG, yanchor="bottom", y=0.113),  # gap above row 6 (wind)
     )
 
     # x-axes: tick labels only on the bottom row
