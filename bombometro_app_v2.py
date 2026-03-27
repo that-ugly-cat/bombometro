@@ -179,9 +179,12 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     cc_high   = [_raw(h, rbt, "cloud_cover_high")    for h in hrs]
 
     # ── thermal raw ──
-    shortwave_vals  = [_raw(h, rbt, "shortwave_radiation")                           for h in hrs]
+    shortwave_vals  = [_raw(h, rbt, "shortwave_radiation")                                  for h in hrs]
     lapse_rate_vals = [_raw(h, rbt, "temperature_2m") - _raw(h, rbt, "temperature_700hPa") for h in hrs]
     spread_vals     = [_raw(h, rbt, "temperature_2m") - _raw(h, rbt, "dew_point_2m")       for h in hrs]
+
+    # ── foehn pressure gradient ──
+    dp_vals = [_raw(h, rbt, "delta_p_foehn") for h in hrs]
 
     # ── compass labels ──
     lbl_10m  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_10m,  wind_10m)]
@@ -192,16 +195,17 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
 
     # ── figure skeleton ──
     fig = make_subplots(
-        rows=5, cols=1,
+        rows=6, cols=1,
         shared_xaxes=True,
-        row_heights=[0.2, 0.2, 0.2, 0.2, 0.2],
+        row_heights=[0.2, 0.2, 0.2, 0.2, 0.1, 0.2],   # foehn panel (row 5) intentionally shorter
         vertical_spacing=0.07,
-        specs=[[{"secondary_y": True}]] * 5,
+        specs=[[{"secondary_y": True}]] * 6,
         subplot_titles=[
             "🚦  Status & fly score",
             "📊  Component scores",
             "🌡️  Thermal activity",
             "☁️  Cloud cover & precipitation",
+            "🌬️  Foehn pressure gradient (hPa)",
             "💨  Wind by level  (km/h)",
         ],
     )
@@ -427,7 +431,53 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 5 — wind by level
+    # ROW 5 — foehn pressure gradient
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # bar colors: warm gradient for positive (foehn), cool for negative (anti-foehn)
+    _thresh   = site.foehn_delta_p_max_hpa
+    _veto_thr = _thresh * 1.20
+
+    def _dp_color(v: float) -> str:
+        if v >= _veto_thr:
+            return "rgba(255,87,34,0.90)"    # deep red-orange — veto zone
+        elif v >= _thresh * 0.6:
+            return "rgba(255,167,38,0.80)"   # orange — warning zone
+        elif v > 0:
+            return "rgba(255,213,79,0.55)"   # yellow — mild positive
+        elif v < 0:
+            return "rgba(100,181,246,0.55)"  # light blue — anti-foehn / blocking
+        return "rgba(120,120,120,0.40)"      # grey — neutral / no data
+
+    dp_colors = [_dp_color(v) for v in dp_vals]
+
+    fig.add_trace(
+        go.Bar(
+            x=lbl, y=dp_vals, name="Δp N−S",
+            marker=dict(color=dp_colors, line=dict(width=0)),
+            legend="legend5",
+            hovertemplate="Δp (N−S): <b>%{y:+.1f}</b> hPa<extra></extra>",
+        ),
+        row=5, col=1,
+    )
+
+    # threshold lines (both sides)
+    for y_val, color, label in [
+        ( _thresh,  "#FFA726", f"+{_thresh:.0f} hPa  score max"),
+        (-_thresh,  "#FFA726", f"−{_thresh:.0f} hPa"),
+        ( _veto_thr, "#EF5350", f"+{_veto_thr:.0f} hPa  veto"),
+        (-_veto_thr, "#EF5350", f"−{_veto_thr:.0f} hPa"),
+    ]:
+        fig.add_hline(
+            y=y_val, row=5, col=1,
+            line=dict(color=color, dash="dot", width=1.2),
+            annotation_text=label,
+            annotation_font=dict(color=color, size=9),
+            annotation_position="top right" if y_val > 0 else "bottom right",
+        )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ROW 6 — wind by level
     # ─────────────────────────────────────────────────────────────────────────
 
     # gust-range fill polygon (gusts top, wind_10m bottom, reversed)
@@ -439,7 +489,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="rgba(0,0,0,0)"),
             hoverinfo="skip", showlegend=False, name="_gustfill",
         ),
-        row=5, col=1,
+        row=6, col=1,
     )
 
     for name, data, dir_labels, color, dash, width in [
@@ -455,12 +505,12 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 customdata=dir_labels,
                 line=dict(color=color, dash=dash, width=width),
                 mode="lines",
-                legend="legend5",
+                legend="legend6",
                 hovertemplate=(
                     f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>"
                 ),
             ),
-            row=5, col=1,
+            row=6, col=1,
         )
 
     for y_val, color, label in [
@@ -468,7 +518,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         (site.wind_925_max_kmh,    "#FF8A65", f"925 max {site.wind_925_max_kmh:.0f}"),
     ]:
         fig.add_hline(
-            y=y_val, row=5, col=1,
+            y=y_val, row=6, col=1,
             line=dict(color=color, dash="dot", width=1.5),
             annotation_text=label,
             annotation_font=dict(color=color, size=10),
@@ -512,20 +562,16 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
-    # row_heights=[0.15,0.23,0.18,0.22,0.22], spacing=0.04
-    # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
-    # Legends 2-5: yanchor="top", y slightly above each panel top (in spacing).
-    # Legend 1: yanchor="bottom", y=1.0 → floats in top margin (t=40).
-    # Legends live in the inter-panel GAP, just above each panel's top boundary.
-    # spacing=0.07, equal row heights → plot area=0.72, each row=0.144.
-    # Panel tops: row1=1.0, row2=0.786, row3=0.572, row4=0.358, row5=0.144
-    # Subplot title annotations: pushed to mid-gap (+0.035) in the annotation loop.
-    # Legends: yanchor="bottom", y = panel_top + 0.005 → sits at gap base below title.
+    # row_heights=[0.2,0.2,0.2,0.2,0.1,0.2] (rel, sum=1.1), spacing=0.07, 5 gaps.
+    # Normalised heights × plot_area (=0.65): rows 1-4,6 ≈ 0.1182 each, row 5 ≈ 0.0591.
+    # Panel tops (bottom→top): row6=0.1182, row5=0.2473, row4=0.4355,
+    #                           row3=0.6237, row2=0.8119, row1=1.0
+    # Legends: yanchor="bottom", y = panel_top + 0.005 → floats at gap base, below title.
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
-        height=1380,
+        height=1550,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
@@ -537,32 +583,34 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # gap above row 1 (top margin)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.791),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.577),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.363),  # gap above row 4
-        legend5=dict(**_LEG, yanchor="bottom", y=0.149),  # gap above row 5
+        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin (above row 1)
+        legend2=dict(**_LEG, yanchor="bottom", y=0.817),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.629),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.441),  # gap above row 4
+        legend5=dict(**_LEG, yanchor="bottom", y=0.252),  # gap above row 5 (foehn)
+        legend6=dict(**_LEG, yanchor="bottom", y=0.123),  # gap above row 6 (wind)
     )
 
-    # x-axes: only show tick labels on the bottom row
-    for row_i in range(1, 6):
+    # x-axes: tick labels only on the bottom row
+    for row_i in range(1, 7):
         fig.update_xaxes(
             row=row_i, col=1,
             showgrid=False, linecolor=GRID_C,
             tickfont=dict(size=10, color=TEXT),
-            showticklabels=(row_i == 5),
+            showticklabels=(row_i == 6),
             tickangle=0,
         )
-    fig.update_xaxes(row=5, col=1, showticklabels=True)
 
-    # primary y-axes (no titles — panel headings + legends carry the context)
-    fig.update_yaxes(row=1, col=1, range=[0, 105],  **_axis(nticks=4))
-    fig.update_yaxes(row=2, col=1, range=[0, 105],  **_axis(nticks=4))
-    fig.update_yaxes(row=3, col=1, range=[0, 900],  **_axis(nticks=4))
-    fig.update_yaxes(row=4, col=1, range=[0, 100],  **_axis(nticks=4))
-    fig.update_yaxes(row=5, col=1,                  **_axis(nticks=5))
+    # primary y-axes
+    fig.update_yaxes(row=1, col=1, range=[0, 105],   **_axis(nticks=4))
+    fig.update_yaxes(row=2, col=1, range=[0, 105],   **_axis(nticks=4))
+    fig.update_yaxes(row=3, col=1, range=[0, 900],   **_axis(nticks=4))
+    fig.update_yaxes(row=4, col=1, range=[0, 100],   **_axis(nticks=4))
+    fig.update_yaxes(row=5, col=1, range=[-15, 15],  **_axis(nticks=5),
+                     zeroline=True, zerolinecolor=GRID_C, zerolinewidth=1.5)
+    fig.update_yaxes(row=6, col=1,                   **_axis(nticks=5))
 
-    # secondary y-axes (no titles, coloured tick labels identify the axis)
+    # secondary y-axes
     fig.update_yaxes(
         secondary_y=True, row=2, col=1,
         range=[0, 100], showgrid=False, nticks=3,
