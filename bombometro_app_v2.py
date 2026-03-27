@@ -197,7 +197,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         met = (
             f"<br><span style='color:#9E9E9E'>"
             f"10m {lbl_10m[i]} km/h  "
-            f"G {lbl_gust[i]} km/h  "
+            f"Gu {lbl_gust[i]} km/h  "
             f"925 {lbl_925[i]} km/h  "
             f"P {precip[i]:.1f} mm/h</span>"
         )
