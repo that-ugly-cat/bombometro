@@ -149,7 +149,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         return None
 
     smry = day_summary(evaluated_all, day)
-    lbl  = [h["time"][11:16] for h in hrs]
+    lbl  = [h["time"][11:13] for h in hrs]
 
     # ── score series ──
     fly_sc      = [_v(h["fly_score"])        for h in hrs]
@@ -213,23 +213,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         for h in hrs
     ]
 
-    # rich hover: scores + all reasons grouped by category
-    def _rb(label: str, reasons, color: str) -> str:
-        """Format one reasons block as HTML (empty string if no reasons)."""
-        items = [str(x) for x in (reasons or [])]
-        if not items:
-            return ""
-        return (f"<br><span style='color:{color}'>"
-                f"<i>{label}:</i> {' · '.join(items)}</span>")
-
     hover_txt = []
     for i, h in enumerate(hrs):
         if h["veto"]:
             vr = h.get("veto_reasons") or [h["veto_type"] or "?"]
+            # include "foehn" label only when there is active foehn influence, no full reasons
+            if h.get("foehn_score", 0) and _v(h.get("foehn_score")) > 30 and "foehn" not in vr:
+                vr = list(vr) + ["foehn"]
             top = (f"<b>⛔ {(h['veto_type'] or 'veto').upper()}</b>"
                    f"<br>{' · '.join(str(x) for x in vr)}")
-            # foehn reasons always relevant when present
-            top += _rb("foehn", h.get("foehn_reasons"), "#FFA726")
         else:
             top = (
                 f"<b>fly {_v(h['fly_score']):.0f}</b>"
@@ -557,7 +549,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             showgrid=False, linecolor=GRID_C,
             tickfont=dict(size=10, color=TEXT),
             showticklabels=(row_i == 5),
-            tickangle=-45,
+            tickangle=0,
         )
     fig.update_xaxes(row=5, col=1, showticklabels=True)
 
@@ -697,7 +689,7 @@ Layers are stacked: total can exceed 100% when all levels are present.
 
     with st.popover("📐 Pressure levels (AMSL)", use_container_width=True):
         st.markdown("""
-Approximate altitude above mean sea level for each pressure level (standard atmosphere):
+Approximate altitude AMSL for each pressure level:
 
 | Level | Altitude |
 |-------|----------|
@@ -708,7 +700,7 @@ Approximate altitude above mean sea level for each pressure level (standard atmo
 | 700 hPa | ~3000 m |
 
 Actual altitudes vary with temperature and surface pressure.
-Lapse rate uses **gnd – 700hPa** (full thermal column, ~3000 m).
+
 """)
 
     st.divider()
