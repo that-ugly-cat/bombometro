@@ -594,9 +594,23 @@ def evaluate_hour(row: Dict[str, Any], site: SiteConfig) -> Dict[str, Any]:
 
     potential  = clamp(0.25 * l_sc + 0.35 * u_sc + 0.40 * th["thermal_score"], 0, 100)
     risk_pen   = 20.0 * r_sc / 100.0
-    foehn_pen  = (0.0  if f_sc <= 40  else
-                  25.0 if f_sc >= 100 else
-                  25.0 * (f_sc - 40.0) / 60.0)
+
+    # ── thermal–foehn interaction ─────────────────────────────────────────────
+    # Strong thermals partially attenuate foehn influence at pilot level:
+    # convective mixing disrupts low-level foehn turbulence and pilots can climb
+    # above rotor zones quickly. The interaction is largest when thermals are
+    # good AND foehn is moderate; it vanishes at both extremes (zero thermal, or
+    # extreme foehn that no amount of lift can compensate for).
+    # Only affects scoring — the hard veto (pressure gradient) is never touched.
+    _FOEHN_THERMAL_MAX_ATT = 25.0   # max attenuation in score points
+    _thermal_f = clamp(th["thermal_score"] / 100.0, 0.0, 1.0)
+    _foehn_f   = clamp(f_sc / 100.0,                0.0, 1.0)
+    _att       = _FOEHN_THERMAL_MAX_ATT * _thermal_f * (1.0 - _foehn_f)
+    f_sc_adj   = clamp(f_sc - _att, 0.0, 100.0)
+
+    foehn_pen  = (0.0  if f_sc_adj <= 40  else
+                  25.0 if f_sc_adj >= 100 else
+                  25.0 * (f_sc_adj - 40.0) / 60.0)
     fly_sc     = clamp(potential - risk_pen - foehn_pen, 0, 100)
 
     return {
@@ -617,8 +631,11 @@ def evaluate_hour(row: Dict[str, Any], site: SiteConfig) -> Dict[str, Any]:
         "thermal_regime":    th["thermal_regime"],
         "risk_score":        round(r_sc, 1),
         "risk_reasons":      r_reasons,
-        "foehn_score":       round(f_sc, 1),  "foehn_reasons":  f_reasons,
-        "potential_score":   round(potential, 1),              # always
+        "foehn_score":       round(f_sc, 1),       # raw, used in chart
+        "foehn_score_adj":   round(f_sc_adj, 1),   # after thermal attenuation, used in scoring
+        "foehn_attenuation": round(_att, 1),        # diagnostic: how many points were shaved off
+        "foehn_reasons":     f_reasons,
+        "potential_score":   round(potential, 1),   # always populated
         "risk_penalty":      round(risk_pen,  1) if not veto else None,
         "foehn_penalty":     round(foehn_pen, 1) if not veto else None,
         "fly_score":         round(fly_sc,    1) if not veto else None,
@@ -772,6 +789,32 @@ def day_summary(evaluated_hours: List[Dict[str, Any]], day: str) -> Dict[str, An
         "usable_windows_found":   len(real),
         "reasons":                reasons,
     }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SUN TIMES  (astral — pure astronomical calculation, no API)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def get_sun_times(lat: float, lon: float, timezone: str, day: str) -> Dict[str, Any]:
+    """
+    Return sunrise, solar noon, and sunset for the given location and date.
+    All values are timezone-aware datetime objects in the site's local timezone.
+    Requires: astral
+    """
+    import datetime
+    from zoneinfo import ZoneInfo
+    from astral import LocationInfo
+    from astral.sun import sun as astral_sun
+
+    tz       = ZoneInfo(timezone)
+    d        = datetime.date.fromisoformat(day)
+    observer = LocationInfo(latitude=lat, longitude=lon).observer
+    s        = astral_sun(observer, date=d, tzinfo=tz)
+    return {
+        "sunrise":    s["sunrise"],
+        "solar_noon": s["noon"],
+        "sunset":     s["sunset"],
+    }
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PIPELINE HELPER  (fetch → enrich → evaluate → summarise)
