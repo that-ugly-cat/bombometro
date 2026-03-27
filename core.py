@@ -38,6 +38,13 @@ class SiteConfig:
     wind_700_max_kmh: float
     foehn_delta_p_max_hpa: float
 
+    # Foehn reference stations: north = windward (e.g. Innsbruck), south = lee (e.g. Bolzano).
+    # delta_p = pressure_north − pressure_south; positive values indicate foehn tendency.
+    foehn_north_lat: float
+    foehn_north_lon: float
+    foehn_south_lat: float
+    foehn_south_lon: float
+
     precip_max_mm: float
     snow_max_cm: float
     cloud_low_max_pct: float
@@ -126,8 +133,6 @@ HOURLY_VARS: List[str] = [
     "lightning_potential",
 ]
 
-BOLZANO   = {"latitude": 46.4983, "longitude": 11.3548}
-INNSBRUCK = {"latitude": 47.2692, "longitude": 11.4041}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # FETCH
@@ -149,20 +154,26 @@ def fetch_forecast(site: SiteConfig, forecast_days: int = 2) -> Dict[str, Any]:
     return r.json()
 
 
-def fetch_foehn_pressure_series(timezone: str = "Europe/Rome",
-                                forecast_days: int = 3) -> Dict[str, Dict[str, float]]:
+def fetch_foehn_pressure_series(
+    north_lat: float, north_lon: float,
+    south_lat: float, south_lon: float,
+    timezone: str = "Europe/Rome",
+    forecast_days: int = 3,
+) -> Dict[str, Dict[str, float]]:
     """
-    Fetch hourly MSL pressure for Bolzano and Innsbruck.
+    Fetch hourly MSL pressure for two configurable reference stations.
+    north = windward side (e.g. Innsbruck), south = lee side (e.g. Bolzano).
+    delta_p_foehn = pressure_north − pressure_south; positive → foehn tendency.
     Returns a dict keyed by ISO timestamp.
     """
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
-        "latitude":     f"{BOLZANO['latitude']},{INNSBRUCK['latitude']}",
-        "longitude":    f"{BOLZANO['longitude']},{INNSBRUCK['longitude']}",
-        "hourly":       "pressure_msl",
-        "timezone":     timezone,
+        "latitude":      f"{south_lat},{north_lat}",
+        "longitude":     f"{south_lon},{north_lon}",
+        "hourly":        "pressure_msl",
+        "timezone":      timezone,
         "forecast_days": forecast_days,
-        "models":       "icon_eu",
+        "models":        "icon_eu",
     }
     r = requests.get(url, params=params, timeout=30)
     r.raise_for_status()
@@ -171,17 +182,17 @@ def fetch_foehn_pressure_series(timezone: str = "Europe/Rome",
     if not isinstance(data, list) or len(data) != 2:
         raise ValueError("Unexpected foehn response format (expected list of 2)")
 
-    bz, inn = data[0], data[1]
+    south_data, north_data = data[0], data[1]
     series: Dict[str, Dict[str, float]] = {}
-    for ts, p_bz, p_inn in zip(
-        bz["hourly"]["time"],
-        bz["hourly"]["pressure_msl"],
-        inn["hourly"]["pressure_msl"],
+    for ts, p_south, p_north in zip(
+        south_data["hourly"]["time"],
+        south_data["hourly"]["pressure_msl"],
+        north_data["hourly"]["pressure_msl"],
     ):
         series[ts] = {
-            "pressure_bolzano":          p_bz,
-            "pressure_innsbruck":        p_inn,
-            "delta_p_innsbruck_bolzano": p_inn - p_bz,
+            "pressure_foehn_south": p_south,
+            "pressure_foehn_north": p_north,
+            "delta_p_foehn":        p_north - p_south,
         }
     return series
 
@@ -210,9 +221,9 @@ def enrich_rows_with_foehn_pressure(
     enriched = []
     for row in rows:
         extra = pressure_series.get(row["time"], {
-            "pressure_bolzano":          None,
-            "pressure_innsbruck":        None,
-            "delta_p_innsbruck_bolzano": None,
+            "pressure_foehn_south": None,
+            "pressure_foehn_north": None,
+            "delta_p_foehn":        None,
         })
         new_row = row.copy()
         new_row.update(extra)
@@ -253,7 +264,7 @@ def hard_veto(row: Dict[str, Any], site: SiteConfig) -> Tuple[bool, Optional[str
     precip    = safe_value(row, "precipitation")
     snowfall  = safe_value(row, "snowfall", 0.0)
     cloud_low = safe_value(row, "cloud_cover_low")
-    delta_p   = safe_value(row, "delta_p_innsbruck_bolzano", 0.0)
+    delta_p   = safe_value(row, "delta_p_foehn", 0.0)
 
     dir_diff = angle_diff_deg(wind_dir, site.launch_dir_center_deg)
     if dir_diff > site.launch_dir_tolerance_deg:
@@ -388,7 +399,7 @@ def upper_wind_score(row: Dict[str, Any], site: SiteConfig) -> Tuple[float, List
 
 def foehn_score(row: Dict[str, Any], site: SiteConfig) -> Tuple[float, List[str]]:
     reasons = []
-    delta_p = safe_value(row, "delta_p_innsbruck_bolzano", 0.0)
+    delta_p = safe_value(row, "delta_p_foehn", 0.0)
 
     w925, w850, w800, w700 = (safe_value(row, k) for k in [
         "wind_speed_925hPa", "wind_speed_850hPa",
