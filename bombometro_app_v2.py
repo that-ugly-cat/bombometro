@@ -193,7 +193,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         rows=5, cols=1,
         shared_xaxes=True,
         row_heights=[0.15, 0.23, 0.18, 0.22, 0.22],
-        vertical_spacing=0.04,
+        vertical_spacing=0.07,
         specs=[[{"secondary_y": True}]] * 5,
         subplot_titles=[
             "🚦  Status & fly score",
@@ -522,18 +522,20 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
     # Legends 2-5: yanchor="top", y slightly above each panel top (in spacing).
     # Legend 1: yanchor="bottom", y=1.0 → floats in top margin (t=40).
-    # Legends sit just INSIDE each panel's top-left corner, below the subplot title
-    # (which lives in the spacing above each panel) → order: title → legend → chart.
-    # Panel tops (paper): row1=1.0, row2=0.834, row3=0.601, row4=0.410, row5=0.185
+    # Legends live in the inter-panel GAP, just above each panel's top boundary.
+    # spacing=0.07 → 87px gap per row (at height=1380) — enough for title + legend.
+    # Panel tops (paper, spacing=0.07): row1=1.0, row2=0.822, row3=0.586, row4=0.387, row5=0.158
+    # Subplot title annotations are pushed to mid-gap (+0.045) in the loop below.
+    # Legends: yanchor="bottom", y = panel_top + 0.005 → bottom of legend at gap base.
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
-                bgcolor="rgba(28,28,46,0.78)", font=dict(size=10), tracegroupgap=4)
+                bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
-        height=1250,
+        height=1380,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=22, r=38, t=38, b=8),
+        margin=dict(l=22, r=38, t=68, b=8),
         barmode="group",
         hovermode="x unified",
         hoverlabel=dict(
@@ -541,11 +543,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="top", y=0.994),  # inside row 1
-        legend2=dict(**_LEG, yanchor="top", y=0.828),  # inside row 2
-        legend3=dict(**_LEG, yanchor="top", y=0.595),  # inside row 3
-        legend4=dict(**_LEG, yanchor="top", y=0.404),  # inside row 4
-        legend5=dict(**_LEG, yanchor="top", y=0.179),  # inside row 5
+        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # gap above row 1 (top margin)
+        legend2=dict(**_LEG, yanchor="bottom", y=0.827),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.591),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.392),  # gap above row 4
+        legend5=dict(**_LEG, yanchor="bottom", y=0.163),  # gap above row 5
     )
 
     # x-axes: only show tick labels on the bottom row
@@ -583,14 +585,17 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         tickfont=dict(color="#64B5F6", size=8),
     )
 
-    # subplot title style (annotations) — left-aligned in spacing above each panel
+    # Subplot title annotations: push upward into mid-gap so order is title→legend→chart.
+    # make_subplots places them at domain_top (yanchor="bottom"); +0.045 lifts them to
+    # mid-gap (gap=0.07 → mid-gap = panel_top + 0.035, a bit higher to give legend room).
     for ann in fig.layout.annotations:
         ann.font.size  = 11
         ann.font.color = TEXT
         ann.x          = 0.0
         ann.xanchor    = "left"
         ann.xref       = "paper"
-        ann.yanchor    = "bottom"   # title bottom sits at panel top → in spacing
+        ann.yanchor    = "bottom"
+        ann.y         += 0.045   # lift into gap; row-1 title lands in top margin
 
     return fig
 
