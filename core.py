@@ -5,9 +5,11 @@ All domain logic: site config, data fetching, enrichment, scoring, verdict.
 No UI / no Streamlit dependency — importable from any context.
 """
 
+import json
 import math
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -47,32 +49,8 @@ class SiteConfig:
     cape_max: float
 
 
-SITE_PRESETS: Dict[str, Dict[str, Any]] = {
-    "Montegrappa": dict(
-        latitude=45.810, longitude=11.773, timezone="Europe/Rome",
-        launch_dir_center_deg=180.0, launch_dir_tolerance_deg=90.0,
-        launch_wind_min_kmh=0.0,  launch_wind_max_kmh=25.0,
-        gust_max_kmh=30.0,        wind_925_max_kmh=30.0,
-        wind_850_max_kmh=35.0,    wind_800_max_kmh=38.0,
-        wind_700_max_kmh=60.0,    foehn_delta_p_max_hpa=8.0,
-        precip_max_mm=0.1,        snow_max_cm=0.1,
-        cloud_low_max_pct=98.0,   cloud_cover_low_bad=85.0,
-        cloud_cover_mid_bad=85.0, shortwave_good=500.0,
-        dewpoint_spread_good=8.0, cape_max=1800.0,
-    ),
-    "Custom": dict(
-        latitude=45.0, longitude=11.0, timezone="Europe/Rome",
-        launch_dir_center_deg=180.0, launch_dir_tolerance_deg=90.0,
-        launch_wind_min_kmh=0.0,  launch_wind_max_kmh=25.0,
-        gust_max_kmh=30.0,        wind_925_max_kmh=30.0,
-        wind_850_max_kmh=35.0,    wind_800_max_kmh=38.0,
-        wind_700_max_kmh=60.0,    foehn_delta_p_max_hpa=8.0,
-        precip_max_mm=0.1,        snow_max_cm=0.1,
-        cloud_low_max_pct=98.0,   cloud_cover_low_bad=85.0,
-        cloud_cover_mid_bad=85.0, shortwave_good=500.0,
-        dewpoint_spread_good=8.0, cape_max=1800.0,
-    ),
-}
+_SITES_PATH = Path(__file__).with_name("sites.json")
+SITE_PRESETS: Dict[str, Dict[str, Any]] = json.loads(_SITES_PATH.read_text(encoding="utf-8"))
 
 # ──────────────────────────────────────────────────────────────────────────────
 # UTILITY HELPERS
@@ -90,6 +68,22 @@ def clamp(value: float, low: float, high: float) -> float:
 def angle_diff_deg(a: float, b: float) -> float:
     diff = abs(a - b) % 360
     return min(diff, 360 - diff)
+
+
+_COMPASS_16 = [
+    "N", "NNE", "NE", "ENE",
+    "E", "ESE", "SE", "SSE",
+    "S", "SSW", "SW", "WSW",
+    "W", "WNW", "NW", "NNW",
+]
+
+def wind_dir_label(deg: float) -> str:
+    """Convert a meteorological wind-from direction (0–360°) to a 16-point compass label.
+
+    Examples: 0→N, 45→NE, 90→E, 180→S, 225→SW, 337.5→NNW.
+    """
+    idx = round(float(deg) / 22.5) % 16
+    return _COMPASS_16[idx]
 
 
 def linear_score(value: float, good_min: float, good_max: float,
@@ -574,21 +568,9 @@ def evaluate_hour(row: Dict[str, Any], site: SiteConfig) -> Dict[str, Any]:
     veto, veto_type, veto_reasons = hard_veto(row, site)
     f_sc, f_reasons               = foehn_score(row, site)
 
-    if veto:
-        return {
-            "time": row["time"], "veto": True, "veto_type": veto_type,
-            "veto_reasons": veto_reasons,
-            "launch_score": None,       "launch_reasons": [],
-            "upper_wind_score": None,   "upper_wind_reasons": [],
-            "thermal_score": None,      "thermal_reasons": [],
-            "thermal_active": False,    "cloudbase_estimate_m": None,
-            "cloudbase_band": None,     "thermal_regime": None,
-            "risk_score": None,         "risk_reasons": [],
-            "foehn_score": round(f_sc, 1), "foehn_reasons": f_reasons,
-            "potential_score": None,    "risk_penalty": None,
-            "foehn_penalty": None,      "fly_score": None,
-        }
-
+    # Always compute all component scores so that:
+    # - potential_score is available even for vetoed hours (shadow line in UI)
+    # - cloudbase_estimate_m is available even when flying is vetoed
     l_sc,  l_reasons = launch_score(row, site)
     u_sc,  u_reasons = upper_wind_score(row, site)
     th               = thermal_score(row)
@@ -602,21 +584,27 @@ def evaluate_hour(row: Dict[str, Any], site: SiteConfig) -> Dict[str, Any]:
     fly_sc     = clamp(potential - risk_pen - foehn_pen, 0, 100)
 
     return {
-        "time": row["time"], "veto": False, "veto_type": None, "veto_reasons": [],
-        "launch_score":     round(l_sc, 1),   "launch_reasons":     l_reasons,
-        "upper_wind_score": round(u_sc, 1),   "upper_wind_reasons": u_reasons,
-        "thermal_score":    round(th["thermal_score"], 1),
-        "thermal_reasons":  th["thermal_reasons"],
-        "thermal_active":   th["thermal_active"],
-        "cloudbase_estimate_m": th["cloudbase_estimate_m"],
-        "cloudbase_band":   th["cloudbase_band"],
-        "thermal_regime":   th["thermal_regime"],
-        "risk_score":       round(r_sc, 1),   "risk_reasons":   r_reasons,
-        "foehn_score":      round(f_sc, 1),   "foehn_reasons":  f_reasons,
-        "potential_score":  round(potential, 1),
-        "risk_penalty":     round(risk_pen,  1),
-        "foehn_penalty":    round(foehn_pen, 1),
-        "fly_score":        round(fly_sc,    1),
+        "time": row["time"], "veto": veto, "veto_type": veto_type,
+        "veto_reasons": veto_reasons,
+        # Component scores are None when vetoed so bars don't render;
+        # potential_score and cloudbase are always populated.
+        "launch_score":      round(l_sc, 1) if not veto else None,
+        "launch_reasons":    l_reasons      if not veto else [],
+        "upper_wind_score":  round(u_sc, 1) if not veto else None,
+        "upper_wind_reasons": u_reasons     if not veto else [],
+        "thermal_score":     round(th["thermal_score"], 1) if not veto else None,
+        "thermal_reasons":   th["thermal_reasons"]         if not veto else [],
+        "thermal_active":    th["thermal_active"],
+        "cloudbase_estimate_m": th["cloudbase_estimate_m"],   # always
+        "cloudbase_band":    th["cloudbase_band"],
+        "thermal_regime":    th["thermal_regime"],
+        "risk_score":        round(r_sc, 1) if not veto else None,
+        "risk_reasons":      r_reasons      if not veto else [],
+        "foehn_score":       round(f_sc, 1),  "foehn_reasons":  f_reasons,
+        "potential_score":   round(potential, 1),              # always
+        "risk_penalty":      round(risk_pen,  1) if not veto else None,
+        "foehn_penalty":     round(foehn_pen, 1) if not veto else None,
+        "fly_score":         round(fly_sc,    1) if not veto else None,
     }
 
 # ──────────────────────────────────────────────────────────────────────────────
