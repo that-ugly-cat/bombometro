@@ -379,6 +379,16 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=3, col=1,
     )
 
+    def _sw_label(w):
+        return ("strong" if w >= 600 else "good" if w >= 400 else
+                "moderate" if w >= 150 else "weak")
+    def _spread_label(s):
+        return ("very dry" if s >= 12 else "dry / good" if s >= 8 else
+                "moderate" if s >= 5 else "humid / low cloudbase")
+    def _lapse_label(lr):
+        return ("strong thermals" if lr >= 22 else "good thermals" if lr >= 18 else
+                "moderate" if lr >= 15 else "stable / weak")
+
     # shortwave radiation — primary y, amber area
     fig.add_trace(
         go.Scatter(
@@ -387,12 +397,13 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#FFD54F", width=1.5),
             mode="lines",
             legend="legend3",
-            hovertemplate="shortwave: <b>%{y:.0f}</b> W/m²<extra></extra>",
+            customdata=[_sw_label(w) for w in shortwave_vals],
+            hovertemplate="shortwave: <b>%{y:.0f}</b> W/m²  [%{customdata}]<extra></extra>",
         ),
         row=3, col=1,
     )
 
-    # temp-dewpoint spread — third axis (y11, overlaying row3 primary y5)
+    # temp-dewpoint spread — shared right axis (y6, same as lapse rate)
     fig.add_trace(
         go.Scatter(
             x=lbl, y=spread_vals, name="T−Td spread (°C)",
@@ -400,14 +411,14 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#80DEEA", width=1.8, dash="dot"),
             marker=dict(size=4, color="#80DEEA"),
             legend="legend3",
-            hovertemplate="spread: <b>%{y:.1f}</b> °C  →  cloudbase ≈ %{customdata:.0f} m<extra></extra>",
-            customdata=[s * 125 for s in spread_vals],
+            customdata=[[round(s * 125), _spread_label(s)] for s in spread_vals],
+            hovertemplate="spread: <b>%{y:.1f}</b> °C  [%{customdata[1]}]  →  cloudbase ≈ %{customdata[0]:.0f} m<extra></extra>",
         ),
         row=3, col=1,
     )
-    fig.data[-1].yaxis = "y11"   # dedicated spread axis
+    fig.data[-1].yaxis = "y6"   # share axis with lapse rate (secondary y row 3)
 
-    # lapse rate (T2m − T700) — secondary y, orange line
+    # lapse rate (T2m − T700) — secondary y, orange fill
     fig.add_trace(
         go.Scatter(
             x=lbl, y=lapse_rate_vals, name="T2m−T700 (°C)",
@@ -415,7 +426,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#FFA726", width=1.8),
             mode="lines",
             legend="legend3",
-            hovertemplate="lapse rate: <b>%{y:.1f}</b> °C<extra></extra>",
+            customdata=[_lapse_label(lr) for lr in lapse_rate_vals],
+            hovertemplate="lapse rate: <b>%{y:.1f}</b> °C  [%{customdata}]<extra></extra>",
         ),
         row=3, col=1, secondary_y=True,
     )
@@ -522,7 +534,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # Per-subplot legend y-positions (paper coords).
     # row_heights=[0.15,0.23,0.18,0.22,0.22], spacing=0.04
     # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
-    _LEG = dict(orientation="h", xanchor="right", x=0.99,
+    # x=0.89 aligns legend right edge with plot area corner (r margin ≈ 110px)
+    # y values sit just above each panel top (in the inter-panel spacing)
+    _LEG = dict(orientation="h", xanchor="right", x=0.89,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
@@ -538,24 +552,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="top", y=0.998),   # row 1: status & fly
-        legend2=dict(**_LEG, yanchor="top", y=0.832),   # row 2: component scores
-        legend3=dict(**_LEG, yanchor="top", y=0.599),   # row 3: thermal
-        legend4=dict(**_LEG, yanchor="top", y=0.391),   # row 4: wind
-        legend5=dict(**_LEG, yanchor="top", y=0.166),   # row 5: cloud & weather
-        # spread — third axis on row 3 (overlaying row3 primary = y5)
-        yaxis11=dict(
-            overlaying="y5",
-            side="right",
-            anchor="free",
-            position=0.97,
-            range=[0, 20],
-            showgrid=False,
-            zeroline=False,
-            title_text="spread °C",
-            title_font=dict(color="#80DEEA", size=9),
-            tickfont=dict(color="#80DEEA", size=9),
-        ),
+        legend =dict(**_LEG, yanchor="top", y=0.998),   # row 1 top
+        legend2=dict(**_LEG, yanchor="top", y=0.858),   # above row 2 (spacing)
+        legend3=dict(**_LEG, yanchor="top", y=0.622),   # above row 3
+        legend4=dict(**_LEG, yanchor="top", y=0.414),   # above row 4
+        legend5=dict(**_LEG, yanchor="top", y=0.188),   # above row 5
         # cloudbase — third axis on row 5 (overlaying row5 primary = y9)
         yaxis12=dict(
             overlaying="y9",
@@ -605,7 +606,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     fig.update_yaxes(
         secondary_y=True, row=3, col=1,
         range=[0, 30], showgrid=False,
-        title_text="lapse rate °C",
+        title_text="°C",
         title_font=dict(color="#EF5350", size=10),
         tickfont=dict(color="#EF5350", size=9),
     )
