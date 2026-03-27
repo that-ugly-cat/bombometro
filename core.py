@@ -653,7 +653,10 @@ def day_summary(evaluated_hours: List[Dict[str, Any]], day: str) -> Dict[str, An
     Summarise one calendar day.
     Verdict labels: bad idea / if you must / meh / not bad / hammer day
     """
-    day_rows = [r for r in evaluated_hours if r["time"].startswith(day)]
+    day_rows = [
+        r for r in evaluated_hours
+        if r["time"].startswith(day) and 6 <= int(r["time"][11:13]) <= 20
+    ]
 
     def safe_mean(vals: List[Optional[float]]) -> Optional[float]:
         v = [x for x in vals if x is not None]
