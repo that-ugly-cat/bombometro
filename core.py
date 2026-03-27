@@ -119,7 +119,8 @@ def round0_or_zero(v: Optional[float]) -> float:
 HOURLY_VARS: List[str] = [
     "temperature_2m", "dew_point_2m", "freezing_level_height",
     "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
-    "precipitation", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m",
+    "precipitation", "snowfall",
+    "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m",
     "shortwave_radiation", "cape", "sunshine_duration",
     "wind_speed_925hPa",  "wind_direction_925hPa",
     "relative_humidity_925hPa", "temperature_925hPa",
