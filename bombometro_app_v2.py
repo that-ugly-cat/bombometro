@@ -18,6 +18,7 @@ from core import (
     fetch_foehn_pressure_series,
     fetch_forecast,
     run_pipeline,
+    wind_dir_label,
 )
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -115,24 +116,36 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     lbl  = [h["time"][11:16] for h in hrs]
 
     # ── score series ──
-    fly_sc     = [_v(h["fly_score"])        for h in hrs]
-    launch_sc  = [_v(h["launch_score"])     for h in hrs]
-    upper_sc   = [_v(h["upper_wind_score"]) for h in hrs]
-    thermal_sc = [_v(h["thermal_score"])    for h in hrs]
-    risk_sc    = [_v(h["risk_score"])       for h in hrs]
-    foehn_sc   = [_v(h["foehn_score"])      for h in hrs]
-    cloudbase  = [h["cloudbase_estimate_m"] for h in hrs]
+    fly_sc      = [_v(h["fly_score"])        for h in hrs]
+    potential_sc= [_v(h["potential_score"])  for h in hrs]   # always populated
+    launch_sc   = [_v(h["launch_score"])     for h in hrs]
+    upper_sc    = [_v(h["upper_wind_score"]) for h in hrs]
+    thermal_sc  = [_v(h["thermal_score"])    for h in hrs]
+    risk_sc     = [_v(h["risk_score"])       for h in hrs]
+    foehn_sc    = [_v(h["foehn_score"])      for h in hrs]
+    cloudbase   = [h["cloudbase_estimate_m"] for h in hrs]   # always populated
 
     # ── raw meteo ──
-    wind_10m  = [_raw(h, rbt, "wind_speed_10m")    for h in hrs]
-    gusts_10m = [_raw(h, rbt, "wind_gusts_10m")    for h in hrs]
-    wind_925  = [_raw(h, rbt, "wind_speed_925hPa") for h in hrs]
-    wind_850  = [_raw(h, rbt, "wind_speed_850hPa") for h in hrs]
-    wind_700  = [_raw(h, rbt, "wind_speed_700hPa") for h in hrs]
-    precip    = [_raw(h, rbt, "precipitation")     for h in hrs]
-    cc_low    = [_raw(h, rbt, "cloud_cover_low")   for h in hrs]
-    cc_mid    = [_raw(h, rbt, "cloud_cover_mid")   for h in hrs]
-    cc_high   = [_raw(h, rbt, "cloud_cover_high")  for h in hrs]
+    wind_10m  = [_raw(h, rbt, "wind_speed_10m")      for h in hrs]
+    gusts_10m = [_raw(h, rbt, "wind_gusts_10m")      for h in hrs]
+    dir_10m   = [_raw(h, rbt, "wind_direction_10m")  for h in hrs]
+    wind_925  = [_raw(h, rbt, "wind_speed_925hPa")   for h in hrs]
+    dir_925   = [_raw(h, rbt, "wind_direction_925hPa") for h in hrs]
+    wind_850  = [_raw(h, rbt, "wind_speed_850hPa")   for h in hrs]
+    dir_850   = [_raw(h, rbt, "wind_direction_850hPa") for h in hrs]
+    wind_700  = [_raw(h, rbt, "wind_speed_700hPa")   for h in hrs]
+    dir_700   = [_raw(h, rbt, "wind_direction_700hPa") for h in hrs]
+    precip    = [_raw(h, rbt, "precipitation")       for h in hrs]
+    cc_low    = [_raw(h, rbt, "cloud_cover_low")     for h in hrs]
+    cc_mid    = [_raw(h, rbt, "cloud_cover_mid")     for h in hrs]
+    cc_high   = [_raw(h, rbt, "cloud_cover_high")    for h in hrs]
+
+    # ── compass labels ──
+    lbl_10m  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_10m,  wind_10m)]
+    lbl_925  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_925,  wind_925)]
+    lbl_850  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_850,  wind_850)]
+    lbl_700  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_700,  wind_700)]
+    lbl_gust = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_10m,  gusts_10m)]
 
     # ── figure skeleton ──
     fig = make_subplots(
@@ -176,8 +189,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 top += f"<br>cloudbase ≈ {int(cloudbase[i])} m  [{h.get('thermal_regime','')}]"
         met = (
             f"<br><span style='color:#9E9E9E'>"
-            f"G {gusts_10m[i]:.0f} km/h  "
-            f"925 {wind_925[i]:.0f} km/h  "
+            f"10m {lbl_10m[i]} km/h  "
+            f"G {lbl_gust[i]} km/h  "
+            f"925 {lbl_925[i]} km/h  "
             f"P {precip[i]:.1f} mm/h</span>"
         )
         hover_txt.append(top + met)
@@ -192,33 +206,59 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=1, col=1,
     )
 
-    # fly-score line (non-vetoed only)
-    fly_x = [lbl[i] for i, h in enumerate(hrs) if not h["veto"] and _v(h["fly_score"]) > 0]
-    fly_y = [_v(h["fly_score"]) for h in hrs    if not h["veto"] and _v(h["fly_score"]) > 0]
-    if fly_x:
-        fig.add_trace(
-            go.Scatter(
-                x=fly_x, y=fly_y, name="fly score",
-                mode="lines+markers",
-                line=dict(color="white", width=2.5),
-                marker=dict(size=7, color="white", line=dict(color=PANEL_BG, width=1.5)),
-                hovertemplate="fly score: <b>%{y:.0f}</b><extra></extra>",
-            ),
-            row=1, col=1,
-        )
+    # potential score shadow — continuous line showing "what the score would be
+    # without the veto"; always populated, so it bridges vetoed blocks deliberately
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=potential_sc, name="potential (no veto)",
+            mode="lines",
+            line=dict(color="#757575", dash="dot", width=1.5),
+            hovertemplate="potential: <b>%{y:.0f}</b><extra></extra>",
+        ),
+        row=1, col=1,
+    )
+
+    # fly-score line — None for vetoed hours so Plotly draws gaps instead of
+    # bridging across veto blocks (which would imply a score that doesn't exist)
+    fly_y_r1 = [h["fly_score"] if not h["veto"] else None for h in hrs]
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=fly_y_r1, name="fly score",
+            mode="lines+markers",
+            line=dict(color="white", width=2.5),
+            marker=dict(size=7, color="white", line=dict(color=PANEL_BG, width=1.5)),
+            connectgaps=False,
+            hovertemplate="fly score: <b>%{y:.0f}</b><extra></extra>",
+        ),
+        row=1, col=1,
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # ROW 2 — fly-score area + component bars + foehn line (secondary y)
     # ─────────────────────────────────────────────────────────────────────────
 
-    # fly score fill (background reference)
+    # potential score shadow — same continuous line, drawn behind the fly area
     fig.add_trace(
         go.Scatter(
-            x=lbl, y=fly_sc,
+            x=lbl, y=potential_sc, name="potential (no veto)",
+            mode="lines",
+            line=dict(color="#757575", dash="dot", width=1.5),
+            showlegend=False,
+            hovertemplate="potential: <b>%{y:.0f}</b><extra></extra>",
+        ),
+        row=2, col=1,
+    )
+
+    # fly score area — same gap logic: None for vetoed hours
+    fly_y_r2 = [h["fly_score"] if not h["veto"] else None for h in hrs]
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=fly_y_r2,
             fill="tozeroy", fillcolor="rgba(255,255,255,0.06)",
             line=dict(color="white", width=2.5),
             mode="lines+markers",
             marker=dict(size=5, color="white", line=dict(color=PANEL_BG, width=1)),
+            connectgaps=False,
             name="fly score", showlegend=False,
             hovertemplate="fly score: <b>%{y:.0f}</b><extra></extra>",
         ),
@@ -268,19 +308,22 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=3, col=1,
     )
 
-    for name, data, color, dash, width in [
-        ("10m wind",  wind_10m,  "#80DEEA", "solid", 1.8),
-        ("gusts 10m", gusts_10m, "#80DEEA", "dot",   1.3),
-        ("925 hPa",   wind_925,  "#4FC3F7", "solid", 2.0),
-        ("850 hPa",   wind_850,  "#7986CB", "solid", 2.0),
-        ("700 hPa",   wind_700,  "#CE93D8", "solid", 2.0),
+    for name, data, dir_labels, color, dash, width in [
+        ("10m wind",  wind_10m,  lbl_10m,  "#80DEEA", "solid", 1.8),
+        ("gusts 10m", gusts_10m, lbl_gust, "#80DEEA", "dot",   1.3),
+        ("925 hPa",   wind_925,  lbl_925,  "#4FC3F7", "solid", 2.0),
+        ("850 hPa",   wind_850,  lbl_850,  "#7986CB", "solid", 2.0),
+        ("700 hPa",   wind_700,  lbl_700,  "#CE93D8", "solid", 2.0),
     ]:
         fig.add_trace(
             go.Scatter(
                 x=lbl, y=data, name=name,
+                customdata=dir_labels,
                 line=dict(color=color, dash=dash, width=width),
                 mode="lines",
-                hovertemplate=f"{name}: <b>%{{y:.0f}}</b> km/h<extra></extra>",
+                hovertemplate=(
+                    f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>"
+                ),
             ),
             row=3, col=1,
         )
@@ -327,6 +370,21 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=4, col=1, secondary_y=True,
     )
 
+    # cloudbase — added on primary y of row 4 so the xaxis is set correctly,
+    # then redirected to a dedicated third axis (yaxis9) to keep scales separate
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=cloudbase, name="cloudbase (m)",
+            mode="lines+markers",
+            line=dict(color="#FFCC02", dash="dashdot", width=2),
+            marker=dict(size=4, color="#FFCC02"),
+            connectgaps=False,
+            hovertemplate="cloudbase: <b>%{y:.0f} m</b><extra></extra>",
+        ),
+        row=4, col=1,
+    )
+    fig.data[-1].yaxis = "y9"   # detach from cloud-% axis → dedicated metre axis
+
     # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
@@ -341,7 +399,19 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=55, r=70, t=90, b=20),
+        margin=dict(l=55, r=110, t=90, b=20),
+        yaxis9=dict(
+            overlaying="y7",        # row 4 primary y
+            side="right",
+            anchor="free",
+            position=1.0,
+            range=[0, 4500],
+            showgrid=False,
+            zeroline=False,
+            title_text="cloudbase m",
+            title_font=dict(color="#FFCC02", size=9),
+            tickfont=dict(color="#FFCC02", size=9),
+        ),
         title=dict(
             text=f"<b>{site.name}</b>   {day}   <b>{verdict.upper()}</b>   [{tag}]   fly {mean_fly:.0f}{win_str}",
             font=dict(size=13, color=TEXT),
