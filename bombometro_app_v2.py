@@ -233,7 +233,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
         rows=7, cols=1,
         shared_xaxes=True,
         row_heights=[0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-        vertical_spacing=0.08,
+        vertical_spacing=0.065,
         specs=[[{"secondary_y": True}]] * 7,
         subplot_titles=[
             "🚦  Status & fly score",
@@ -655,11 +655,30 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
 
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SUNRISE / SUNSET vertical lines  (span full chart height via yref="paper")
-    # lbl is now integer hours → numeric axis → float x works correctly here.
-    # Times are shown as text in the UI above the chart; no annotations here.
+    # SUNRISE / SUNSET — night shading + vertical lines
+    # lbl is integer hours → numeric axis → float x works correctly.
+    # Times are already shown as text in the UI; no annotations on the lines.
     # ─────────────────────────────────────────────────────────────────────────
     if sun_times and lbl:
+        _x_min = lbl[0]  - 0.5
+        _x_max = lbl[-1] + 0.5
+        _night = "rgba(0,0,20,0.38)"  # dark blue-black overlay for night hours
+
+        sr_dt = sun_times.get("sunrise")
+        ss_dt = sun_times.get("sunset")
+        sr_x  = (sr_dt.hour + sr_dt.minute / 60) if sr_dt else None
+        ss_x  = (ss_dt.hour + ss_dt.minute / 60) if ss_dt else None
+
+        # shade before sunrise
+        if sr_x is not None and sr_x > _x_min:
+            fig.add_vrect(x0=_x_min, x1=sr_x,
+                          fillcolor=_night, line_width=0, layer="below")
+        # shade after sunset
+        if ss_x is not None and ss_x < _x_max:
+            fig.add_vrect(x0=ss_x, x1=_x_max,
+                          fillcolor=_night, line_width=0, layer="below")
+
+        # vertical marker lines (sunrise gold, solar noon faint, sunset orange)
         for key, color in [
             ("sunrise",    "#FFD54F"),
             ("solar_noon", "rgba(255,255,255,0.18)"),
@@ -668,8 +687,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             dt = sun_times.get(key)
             if dt is None:
                 continue
-            x_pos = dt.hour + dt.minute / 60   # e.g. 6.583 for 06:35
-            if lbl[0] - 0.5 <= x_pos <= lbl[-1] + 0.5:
+            x_pos = dt.hour + dt.minute / 60
+            if _x_min <= x_pos <= _x_max:
                 fig.add_vline(x=x_pos,
                               line=dict(color=color, dash="dot", width=1.2))
 
@@ -677,16 +696,16 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
-    # vertical_spacing=0.08, 6 gaps → plot_area=0.52, each row h=0.07429.
-    # Panel tops: row1=1.000, row2=0.846, row3=0.691, row4=0.537, row5=0.383,
-    #             row6=0.229, row7=0.074.
-    # Legends : yanchor="bottom", y = panel_top + 0.005 → sits just above the panel.
-    # Titles  : annotation loop adds +0.040 → mid-gap (half of 0.08 spacing).
+    # vertical_spacing=0.065, 6 gaps → plot_area=0.61, each row h=0.08714.
+    # Panel tops: row1=1.000, row2=0.848, row3=0.696, row4=0.544, row5=0.391,
+    #             row6=0.239, row7=0.087.
+    # Legends : yanchor="bottom", y = panel_top + 0.005 → just above the panel.
+    # Titles  : annotation loop adds +0.033 → mid-gap (half of 0.065 spacing).
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
-        height=2200,
+        height=2000,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
@@ -699,12 +718,12 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             namelength=-1,
         ),
         legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin (above row 1)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.851),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.696),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.542),  # gap above row 4 (atm. profile)
-        legend5=dict(**_LEG, yanchor="bottom", y=0.388),  # gap above row 5 (cloud)
-        legend6=dict(**_LEG, yanchor="bottom", y=0.234),  # gap above row 6 (foehn)
-        legend7=dict(**_LEG, yanchor="bottom", y=0.079),  # gap above row 7 (wind)
+        legend2=dict(**_LEG, yanchor="bottom", y=0.853),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.701),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.549),  # gap above row 4 (atm. profile)
+        legend5=dict(**_LEG, yanchor="bottom", y=0.396),  # gap above row 5 (cloud)
+        legend6=dict(**_LEG, yanchor="bottom", y=0.244),  # gap above row 6 (foehn)
+        legend7=dict(**_LEG, yanchor="bottom", y=0.092),  # gap above row 7 (wind)
     )
 
     # x-axes: numeric integer hours; tickvals/ticktext give "06","07"… display.
@@ -747,7 +766,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
                      tickfont=dict(color="#64B5F6", size=8))
 
     # Subplot title annotations: push upward into mid-gap.
-    # make_subplots places them at domain_top (yanchor="bottom"); +0.040 = mid of 0.08 gap.
+    # make_subplots places them at domain_top (yanchor="bottom"); +0.033 = mid of 0.065 gap.
     for ann in fig.layout.annotations:
         ann.font.size  = 11
         ann.font.color = TEXT
@@ -755,7 +774,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
         ann.xanchor    = "left"
         ann.xref       = "paper"
         ann.yanchor    = "bottom"
-        ann.y         += 0.040   # lift into gap; row-1 title lands in top margin
+        ann.y         += 0.033   # lift into gap; row-1 title lands in top margin
 
     return fig
 
