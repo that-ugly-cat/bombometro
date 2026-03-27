@@ -186,6 +186,22 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # ── foehn pressure gradient ──
     dp_vals = [_raw(h, rbt, "delta_p_foehn") for h in hrs]
 
+    # ── atmospheric profile ──
+    rh_925_vals = [_raw(h, rbt, "relative_humidity_925hPa") for h in hrs]
+    rh_850_vals = [_raw(h, rbt, "relative_humidity_850hPa") for h in hrs]
+    rh_800_vals = [_raw(h, rbt, "relative_humidity_800hPa") for h in hrs]
+    rh_700_vals = [_raw(h, rbt, "relative_humidity_700hPa") for h in hrs]
+    fl_vals     = [_raw(h, rbt, "freezing_level_height")    for h in hrs]  # m asl
+
+    t_2m  = [_raw(h, rbt, "temperature_2m")      for h in hrs]
+    t_925 = [_raw(h, rbt, "temperature_925hPa")  for h in hrs]
+    t_850 = [_raw(h, rbt, "temperature_850hPa")  for h in hrs]
+    t_700 = [_raw(h, rbt, "temperature_700hPa")  for h in hrs]
+    # inversion = temperature INCREASES with altitude (delta > 0 → warmer aloft)
+    inv_sfc_925 = [t9 - t2 for t2, t9 in zip(t_2m,  t_925)]
+    inv_925_850 = [t8 - t9 for t9, t8 in zip(t_925, t_850)]
+    inv_850_700 = [t7 - t8 for t8, t7 in zip(t_850, t_700)]
+
     # ── compass labels ──
     lbl_10m  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_10m,  wind_10m)]
     lbl_925  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_925,  wind_925)]
@@ -195,15 +211,16 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
 
     # ── figure skeleton ──
     fig = make_subplots(
-        rows=6, cols=1,
+        rows=7, cols=1,
         shared_xaxes=True,
-        row_heights=[0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-        vertical_spacing=0.07,
-        specs=[[{"secondary_y": True}]] * 6,
+        row_heights=[0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+        vertical_spacing=0.06,
+        specs=[[{"secondary_y": True}]] * 7,
         subplot_titles=[
             "🚦  Status & fly score",
             "📊  Component scores",
             "🌡️  Thermal activity",
+            "🧊  Atmospheric profile  (RH · freezing level · inversions)",
             "☁️  Cloud cover & precipitation",
             "🌬️  Foehn pressure gradient (hPa)",
             "💨  Wind by level  (km/h)",
@@ -412,9 +429,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             customdata=[[round(s * 125), _spread_label(s)] for s in spread_vals],
             hovertemplate="spread: <b>%{y:.1f}</b> °C  [%{customdata[1]}]  →  cloudbase ≈ %{customdata[0]:.0f} m<extra></extra>",
         ),
-        row=3, col=1,
+        row=3, col=1, secondary_y=True,
     )
-    fig.data[-1].yaxis = "y6"   # share axis with lapse rate (secondary y row 3)
 
     # lapse rate (T2m − T700) — secondary y, orange fill
     fig.add_trace(
@@ -431,7 +447,61 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 5 — foehn pressure gradient
+    # ─────────────────────────────────────────────────────────────────────────
+    # ROW 4 — atmospheric profile (RH by level · freezing level · inversions)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _inv_bg(i0: float, i1: float, i2: float) -> str:
+        """Background colour based on inversion layer depth."""
+        if i0 > 1:                          # surface–925: blocks thermals from launching
+            return "rgba(180,60,40,0.18)"
+        if i1 > 1:                          # 925–850: elevated inversion, caps low thermals
+            return "rgba(200,120,40,0.13)"
+        if i2 > 1:                          # 850–700: high inversion, limits thermal height
+            return "rgba(200,170,50,0.10)"
+        return "rgba(0,0,0,0)"
+
+    inv_bg_colors = [_inv_bg(s, e, h) for s, e, h in zip(inv_sfc_925, inv_925_850, inv_850_700)]
+    fig.add_trace(
+        go.Bar(
+            x=lbl, y=[100] * len(hrs),
+            marker=dict(color=inv_bg_colors, line=dict(width=0)),
+            hoverinfo="skip", showlegend=False, name="_inv_bg",
+        ),
+        row=4, col=1,
+    )
+
+    for name, data, color in [
+        ("RH 925 hPa", rh_925_vals, "#4DB6AC"),
+        ("RH 850 hPa", rh_850_vals, "#81C784"),
+        ("RH 800 hPa", rh_800_vals, "#DCE775"),
+        ("RH 700 hPa", rh_700_vals, "#FFB74D"),
+    ]:
+        fig.add_trace(
+            go.Scatter(
+                x=lbl, y=data, name=name,
+                mode="lines",
+                line=dict(color=color, width=1.8),
+                legend="legend4",
+                hovertemplate=f"{name}: <b>%{{y:.0f}}</b>%<extra></extra>",
+            ),
+            row=4, col=1,
+        )
+
+    # freezing level — secondary y (metres asl)
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=fl_vals, name="freezing level (m)",
+            mode="lines",
+            line=dict(color="#B0BEC5", width=2.0, dash="dash"),
+            legend="legend4",
+            hovertemplate="freezing level: <b>%{y:.0f} m</b><extra></extra>",
+        ),
+        row=4, col=1, secondary_y=True,
+    )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ROW 6 — foehn pressure gradient
     # ─────────────────────────────────────────────────────────────────────────
 
     _thresh = site.foehn_delta_p_max_hpa
@@ -442,21 +512,21 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             mode="lines",
             line=dict(color="#FFA726", width=2.0),
             fill="tozeroy", fillcolor="rgba(255,167,38,0.15)",
-            legend="legend5",
+            legend="legend6",
             customdata=[[f"{v:+.0f}", f"{_thresh:.0f}"] for v in dp_vals],
             hovertemplate="Δp (N−S): <b>%{customdata[0]}</b> hPa  (threshold %{customdata[1]})<extra></extra>",
         ),
-        row=5, col=1,
+        row=6, col=1,
     )
 
     # single positive threshold line, no label
     fig.add_hline(
-        y=_thresh, row=5, col=1,
+        y=_thresh, row=6, col=1,
         line=dict(color="#EF5350", dash="dot", width=1.2),
     )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 6 — wind by level
+    # ROW 7 — wind by level
     # ─────────────────────────────────────────────────────────────────────────
 
     # gust-range fill polygon (gusts top, wind_10m bottom, reversed)
@@ -468,15 +538,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="rgba(0,0,0,0)"),
             hoverinfo="skip", showlegend=False, name="_gustfill",
         ),
-        row=6, col=1,
+        row=7, col=1,
     )
 
     for name, data, dir_labels, color, dash, width in [
-        ("700 hPa",   wind_700,  lbl_700,  "#EF5350", "solid", 2.0),   # red
-        ("850 hPa",   wind_850,  lbl_850,  "#FF9800", "solid", 2.0),   # orange
-        ("925 hPa",   wind_925,  lbl_925,  "#66BB6A", "solid", 2.0),   # green
-        ("gusts 10m", gusts_10m, lbl_gust, "#29B6F6", "dot",   1.3),   # sky blue dotted
-        ("10m wind",  wind_10m,  lbl_10m,  "#29B6F6", "solid", 1.8),   # sky blue
+        ("700 hPa",   wind_700,  lbl_700,  "#EF5350", "solid", 2.0),
+        ("850 hPa",   wind_850,  lbl_850,  "#FF9800", "solid", 2.0),
+        ("925 hPa",   wind_925,  lbl_925,  "#66BB6A", "solid", 2.0),
+        ("gusts 10m", gusts_10m, lbl_gust, "#29B6F6", "dot",   1.3),
+        ("10m wind",  wind_10m,  lbl_10m,  "#29B6F6", "solid", 1.8),
     ]:
         fig.add_trace(
             go.Scatter(
@@ -484,12 +554,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 customdata=dir_labels,
                 line=dict(color=color, dash=dash, width=width),
                 mode="lines",
-                legend="legend6",
-                hovertemplate=(
-                    f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>"
-                ),
+                legend="legend7",
+                hovertemplate=f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>",
             ),
-            row=6, col=1,
+            row=7, col=1,
         )
 
     for y_val, color, label in [
@@ -497,7 +565,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         (site.wind_925_max_kmh,    "#FF8A65", f"925 max {site.wind_925_max_kmh:.0f}"),
     ]:
         fig.add_hline(
-            y=y_val, row=6, col=1,
+            y=y_val, row=7, col=1,
             line=dict(color=color, dash="dot", width=1.5),
             annotation_text=label,
             annotation_font=dict(color=color, size=10),
@@ -505,7 +573,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 4 — cloud cover (stacked) + precip bars (secondary y)
+    # ROW 5 — cloud cover (stacked) + precip bars (secondary y)
     # ─────────────────────────────────────────────────────────────────────────
 
     for name, data, fill_color in [
@@ -520,20 +588,20 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 fillcolor=fill_color,
                 line=dict(color=fill_color, width=0.3),
                 mode="lines",
-                legend="legend4",
+                legend="legend5",
                 hovertemplate=f"{name}: <b>%{{y:.0f}}</b>%<extra></extra>",
             ),
-            row=4, col=1,
+            row=5, col=1,
         )
 
     fig.add_trace(
         go.Bar(
             x=lbl, y=precip, name="precip (mm/h)",
             marker=dict(color="#64B5F6", opacity=0.85, line=dict(width=0)),
-            legend="legend4",
+            legend="legend5",
             hovertemplate="precip: <b>%{y:.1f}</b> mm/h<extra></extra>",
         ),
-        row=4, col=1, secondary_y=True,
+        row=5, col=1, secondary_y=True,
     )
 
 
