@@ -2,7 +2,7 @@
 bombometro · advisor.py
 =======================
 AI-powered day advisory — GPT-4o-mini.
-Persona: Marco, senior paragliding instructor + mountain meteorologist.
+Persona: Bernacca, senior paragliding instructor + mountain meteorologist.
 """
 
 from __future__ import annotations
@@ -175,7 +175,7 @@ def get_advisory(day_context: str, api_key: str) -> str:
             {"role": "system", "content": _SYSTEM},
             {"role": "user",   "content": day_context},
         ],
-        max_tokens=250,
+        max_tokens=500,
         temperature=0.65,
     )
     return response.choices[0].message.content.strip()
