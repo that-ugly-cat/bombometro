@@ -44,6 +44,8 @@ def _fetch_forecast(lat, lon, tz, model, forecast_days):
         gust_max_kmh=0,          wind_925_max_kmh=0,
         wind_850_max_kmh=0,      wind_800_max_kmh=0,
         wind_700_max_kmh=0,      foehn_delta_p_max_hpa=0,
+        foehn_north_lat=0,       foehn_north_lon=0,
+        foehn_south_lat=0,       foehn_south_lon=0,
         precip_max_mm=0,         snow_max_cm=0,
         cloud_low_max_pct=0,     cloud_cover_low_bad=0,
         cloud_cover_mid_bad=0,   shortwave_good=0,
@@ -53,8 +55,8 @@ def _fetch_forecast(lat, lon, tz, model, forecast_days):
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _fetch_foehn(tz, forecast_days):
-    return fetch_foehn_pressure_series(tz, forecast_days)
+def _fetch_foehn(north_lat, north_lon, south_lat, south_lon, tz, forecast_days):
+    return fetch_foehn_pressure_series(north_lat, north_lon, south_lat, south_lon, tz, forecast_days)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PALETTE
@@ -729,6 +731,10 @@ SITE = SiteConfig(
     wind_800_max_kmh=p["wind_800_max_kmh"],
     wind_700_max_kmh=p["wind_700_max_kmh"],
     foehn_delta_p_max_hpa=p["foehn_delta_p_max_hpa"],
+    foehn_north_lat=p["foehn_north_lat"],
+    foehn_north_lon=p["foehn_north_lon"],
+    foehn_south_lat=p["foehn_south_lat"],
+    foehn_south_lon=p["foehn_south_lon"],
     precip_max_mm=p["precip_max_mm"],     snow_max_cm=p["snow_max_cm"],
     cloud_low_max_pct=p["cloud_low_max_pct"],
     cloud_cover_low_bad=p["cloud_cover_low_bad"],
@@ -854,7 +860,9 @@ if fetch_btn:
         try:
             fc = _fetch_forecast(SITE.latitude, SITE.longitude,
                                  SITE.timezone, SITE.model, forecast_days)
-            ps = _fetch_foehn(SITE.timezone, forecast_days)
+            ps = _fetch_foehn(SITE.foehn_north_lat, SITE.foehn_north_lon,
+                              SITE.foehn_south_lat, SITE.foehn_south_lon,
+                              SITE.timezone, forecast_days)
             st.session_state.pipeline = run_pipeline(SITE, forecast_days, fc, ps)
             st.success("Forecast loaded ✓")
         except Exception as e:
