@@ -432,6 +432,21 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=3, col=1, secondary_y=True,
     )
 
+    # cloudbase — free axis y11 (overlaying primary y of row 3)
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=cloudbase, name="cloudbase (m)",
+            mode="lines+markers",
+            line=dict(color="#FFCC02", dash="dashdot", width=2),
+            marker=dict(size=4, color="#FFCC02"),
+            connectgaps=False,
+            legend="legend3",
+            hovertemplate="cloudbase: <b>%{y:.0f} m</b><extra></extra>",
+        ),
+        row=3, col=1,
+    )
+    fig.data[-1].yaxis = "y11"
+
     # ─────────────────────────────────────────────────────────────────────────
     # ROW 4 — wind by level
     # ─────────────────────────────────────────────────────────────────────────
@@ -513,20 +528,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=5, col=1, secondary_y=True,
     )
 
-    # cloudbase — added on primary y of row 5, redirected to y12 (third axis)
-    fig.add_trace(
-        go.Scatter(
-            x=lbl, y=cloudbase, name="cloudbase (m)",
-            mode="lines+markers",
-            line=dict(color="#FFCC02", dash="dashdot", width=2),
-            marker=dict(size=4, color="#FFCC02"),
-            connectgaps=False,
-            legend="legend5",
-            hovertemplate="cloudbase: <b>%{y:.0f} m</b><extra></extra>",
-        ),
-        row=5, col=1,
-    )
-    fig.data[-1].yaxis = "y12"  # detach from cloud-% axis → dedicated metre axis
 
     # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL LAYOUT
@@ -555,15 +556,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         legend =dict(**_LEG, yanchor="bottom", y=1.0),  # row 1: floats in top margin
         legend2=dict(**_LEG, yanchor="top",    y=0.858),   # above row 2 (spacing)
         legend3=dict(**_LEG, yanchor="top",    y=0.622),   # above row 3
-        legend4=dict(**_LEG, yanchor="top",    y=0.414),   # above row 4
-        legend5=dict(**_LEG, yanchor="top",    y=0.188),   # above row 5
-        # cloudbase — third axis on row 5 (overlaying row5 primary = y9)
-        yaxis12=dict(
-            overlaying="y9",
+        legend4=dict(**_LEG, yanchor="top",    y=0.434),   # above row 4
+        legend5=dict(**_LEG, yanchor="top",    y=0.207),   # above row 5
+        # cloudbase — free axis on row 3 (overlaying primary y5)
+        yaxis11=dict(
+            overlaying="y5",
             side="right",
             anchor="free",
             position=0.97,
-            range=[0, 4500],
+            range=[0, 3500],
             showgrid=False,
             zeroline=False,
             title_text="cloudbase m",
