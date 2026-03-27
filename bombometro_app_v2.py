@@ -443,8 +443,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#FFA726", width=2.0),
             fill="tozeroy", fillcolor="rgba(255,167,38,0.15)",
             legend="legend5",
-            customdata=[_thresh] * len(dp_vals),
-            hovertemplate="Δp (N−S): <b>%{y:+.0f}</b> hPa  (threshold %{customdata:.0f})<extra></extra>",
+            customdata=[[f"{v:+.0f}", f"{_thresh:.0f}"] for v in dp_vals],
+            hovertemplate="Δp (N−S): <b>%{customdata[0]}</b> hPa  (threshold %{customdata[1]})<extra></extra>",
         ),
         row=5, col=1,
     )
