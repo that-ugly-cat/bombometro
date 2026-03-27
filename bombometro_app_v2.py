@@ -719,7 +719,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             tickangle=0,
             tickvals=lbl,
             ticktext=_tick_text,
-            xhoverformat="02d",
+            hoverformat="02d",
         )
 
     # primary y-axes
