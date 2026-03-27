@@ -20,6 +20,12 @@ from core import (
     run_pipeline,
     wind_dir_label,
 )
+from advisor import (
+    SECRET_QUESTION,
+    build_day_context,
+    check_secret,
+    get_advisory,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -57,6 +63,12 @@ def _fetch_forecast(lat, lon, tz, model, forecast_days):
 @st.cache_data(ttl=1800, show_spinner=False)
 def _fetch_foehn(north_lat, north_lon, south_lat, south_lon, tz, forecast_days):
     return fetch_foehn_pressure_series(north_lat, north_lon, south_lat, south_lon, tz, forecast_days)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cached_advisory(day_context: str, api_key: str) -> str:
+    """Cache advisory by (context, key) — identical inputs reuse the same LLM response."""
+    return get_advisory(day_context, api_key)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PALETTE
@@ -900,6 +912,8 @@ SITE = SiteConfig(
     foehn_north_lon=p["foehn_north_lon"],
     foehn_south_lat=p["foehn_south_lat"],
     foehn_south_lon=p["foehn_south_lon"],
+    foehn_north_name=p.get("foehn_north_name", ""),
+    foehn_south_name=p.get("foehn_south_name", ""),
     precip_max_mm=p["precip_max_mm"],     snow_max_cm=p["snow_max_cm"],
     cloud_low_max_pct=p["cloud_low_max_pct"],
     cloud_cover_low_bad=p["cloud_cover_low_bad"],
@@ -1093,6 +1107,63 @@ st.markdown(
     f"<span style='color:#9E9E9E;font-size:12px;'>{reason_str}</span>",
     unsafe_allow_html=True,
 )
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AI ADVISOR
+# ──────────────────────────────────────────────────────────────────────────────
+_api_key = st.secrets.get("OPENAI_API_KEY", "")
+
+if not st.session_state.get("advisor_unlocked"):
+    with st.expander("🤖 AI Advisor", expanded=False):
+        st.caption(f"**{SECRET_QUESTION}**")
+        col_ans, col_btn = st.columns([4, 1])
+        with col_ans:
+            ans_input = st.text_input(
+                "answer", key="secret_ans",
+                label_visibility="collapsed",
+                placeholder="your answer…",
+            )
+        with col_btn:
+            if st.button("Unlock", key="unlock_adv", use_container_width=True):
+                if check_secret(ans_input):
+                    st.session_state.advisor_unlocked = True
+                    st.rerun()
+                else:
+                    st.error("Wrong. Think harder.", icon="🤔")
+else:
+    _adv_key = f"advisory_{d}_{preset}"
+
+    adv_col, _ = st.columns([1, 5])
+    with adv_col:
+        ask_btn = st.button("🤖 Ask Marco", key=f"ask_marco_{d}",
+                            use_container_width=True)
+
+    if ask_btn and _adv_key not in st.session_state:
+        if not _api_key:
+            st.warning("OpenAI API key not configured (`OPENAI_API_KEY` in Streamlit secrets).")
+        else:
+            with st.spinner("Marco is checking the skies…"):
+                ctx = build_day_context(evaluated, rows, SITE, d)
+                st.session_state[_adv_key] = _cached_advisory(ctx, _api_key)
+
+    if _adv_key in st.session_state:
+        _adv_text   = st.session_state[_adv_key]
+        _adv_lines  = _adv_text.strip().split("\n")
+        _verdict    = next((l for l in _adv_lines if l.strip().startswith("→")), None)
+        _body       = "\n".join(l for l in _adv_lines if not l.strip().startswith("→")).strip()
+        _verdict_html = (
+            f"<p style='margin:8px 0 0;font-size:14px;font-weight:600;color:#FFA726'>"
+            f"{_verdict}</p>"
+            if _verdict else ""
+        )
+        st.markdown(
+            f"<div style='background:#1e1e38;border-left:3px solid #FFA726;"
+            f"padding:14px 18px;border-radius:8px;margin:6px 0 14px 0'>"
+            f"<p style='margin:0;color:#E0E0E0;font-size:13px;line-height:1.65'>{_body}</p>"
+            f"{_verdict_html}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
 fig = make_day_chart(d, evaluated, rows, SITE)
 if fig:
