@@ -227,9 +227,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                     f"launch {_v(h['launch_score']):.0f}  "
                     f"UW {_v(h['upper_wind_score']):.0f}  "
                     f"thermal {_v(h['thermal_score']):.0f}</span>")
-            top += _rb("launch",     h.get("launch_reasons"),     "#4FC3F7")
-            top += _rb("upper wind", h.get("upper_wind_reasons"), "#81C784")
-            top += _rb("thermal",    h.get("thermal_reasons"),    "#FFD54F")
         else:
             top = (
                 f"<b>fly {_v(h['fly_score']):.0f}</b>"
@@ -241,11 +238,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             if cloudbase[i] is not None:
                 top += (f"<br>cloudbase ≈ {int(cloudbase[i])} m"
                         f"  [{h.get('thermal_regime','')}]")
-            top += _rb("launch",     h.get("launch_reasons"),     "#4FC3F7")
-            top += _rb("upper wind", h.get("upper_wind_reasons"), "#81C784")
-            top += _rb("thermal",    h.get("thermal_reasons"),    "#FFD54F")
-            top += _rb("risk",       h.get("risk_reasons"),       "#EF9A9A")
-            top += _rb("foehn",      h.get("foehn_reasons"),      "#FFA726")
+            # Only show reasons for limiting components
+            if _v(h.get("launch_score")) < 75:
+                top += _rb("launch",     h.get("launch_reasons"),     "#4FC3F7")
+            if _v(h.get("upper_wind_score")) < 75:
+                top += _rb("upper wind", h.get("upper_wind_reasons"), "#81C784")
+            if _v(h.get("risk_score")) > 15:
+                top += _rb("risk",       h.get("risk_reasons"),       "#EF9A9A")
+            if _v(h.get("foehn_score")) > 30:
+                top += _rb("foehn",      h.get("foehn_reasons"),      "#FFA726")
             pen_parts = []
             rpen = _v(h.get("risk_penalty"))
             fpen = _v(h.get("foehn_penalty"))
