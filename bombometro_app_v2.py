@@ -197,7 +197,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         met = (
             f"<br><span style='color:#9E9E9E'>"
             f"10m {lbl_10m[i]} km/h  "
-            f"G {lbl_gust[i]} km/h  "
+            f"Gu {lbl_gust[i]} km/h  "
             f"925 {lbl_925[i]} km/h  "
             f"P {precip[i]:.1f} mm/h</span>"
         )
@@ -328,11 +328,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     for name, data, dir_labels, color, dash, width in [
-        ("10m wind",  wind_10m,  lbl_10m,  "#80DEEA", "solid", 1.8),
-        ("gusts 10m", gusts_10m, lbl_gust, "#80DEEA", "dot",   1.3),
-        ("925 hPa",   wind_925,  lbl_925,  "#4FC3F7", "solid", 2.0),
-        ("850 hPa",   wind_850,  lbl_850,  "#7986CB", "solid", 2.0),
         ("700 hPa",   wind_700,  lbl_700,  "#CE93D8", "solid", 2.0),
+        ("850 hPa",   wind_850,  lbl_850,  "#7986CB", "solid", 2.0),
+        ("925 hPa",   wind_925,  lbl_925,  "#4FC3F7", "solid", 2.0),
+        ("gusts 10m", gusts_10m, lbl_gust, "#80DEEA", "dot",   1.3),
+        ("10m wind",  wind_10m,  lbl_10m,  "#80DEEA", "solid", 1.8),
     ]:
         fig.add_trace(
             go.Scatter(
