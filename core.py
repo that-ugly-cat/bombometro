@@ -586,20 +586,21 @@ def evaluate_hour(row: Dict[str, Any], site: SiteConfig) -> Dict[str, Any]:
     return {
         "time": row["time"], "veto": veto, "veto_type": veto_type,
         "veto_reasons": veto_reasons,
-        # Component scores are None when vetoed so bars don't render;
-        # potential_score and cloudbase are always populated.
-        "launch_score":      round(l_sc, 1) if not veto else None,
-        "launch_reasons":    l_reasons      if not veto else [],
-        "upper_wind_score":  round(u_sc, 1) if not veto else None,
-        "upper_wind_reasons": u_reasons     if not veto else [],
-        "thermal_score":     round(th["thermal_score"], 1) if not veto else None,
-        "thermal_reasons":   th["thermal_reasons"]         if not veto else [],
+        # Component scores are always populated so bars render even on vetoed hours
+        # (vetoed hours show ghost bars, useful to understand *why* the potential
+        # existed despite the veto).  fly_score is None only when vetoed.
+        "launch_score":      round(l_sc, 1),
+        "launch_reasons":    l_reasons,
+        "upper_wind_score":  round(u_sc, 1),
+        "upper_wind_reasons": u_reasons,
+        "thermal_score":     round(th["thermal_score"], 1),
+        "thermal_reasons":   th["thermal_reasons"],
         "thermal_active":    th["thermal_active"],
-        "cloudbase_estimate_m": th["cloudbase_estimate_m"],   # always
+        "cloudbase_estimate_m": th["cloudbase_estimate_m"],
         "cloudbase_band":    th["cloudbase_band"],
         "thermal_regime":    th["thermal_regime"],
-        "risk_score":        round(r_sc, 1) if not veto else None,
-        "risk_reasons":      r_reasons      if not veto else [],
+        "risk_score":        round(r_sc, 1),
+        "risk_reasons":      r_reasons,
         "foehn_score":       round(f_sc, 1),  "foehn_reasons":  f_reasons,
         "potential_score":   round(potential, 1),              # always
         "risk_penalty":      round(risk_pen,  1) if not veto else None,
