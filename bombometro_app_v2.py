@@ -176,6 +176,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     cc_mid    = [_raw(h, rbt, "cloud_cover_mid")     for h in hrs]
     cc_high   = [_raw(h, rbt, "cloud_cover_high")    for h in hrs]
 
+    # ── thermal raw ──
+    shortwave_vals = [_raw(h, rbt, "shortwave_radiation")                        for h in hrs]
+    cape_vals      = [_raw(h, rbt, "cape")                                       for h in hrs]
+    spread_vals    = [_raw(h, rbt, "temperature_2m") - _raw(h, rbt, "dew_point_2m") for h in hrs]
+
     # ── compass labels ──
     lbl_10m  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_10m,  wind_10m)]
     lbl_925  = [f"{wind_dir_label(d)} {v:.0f}" for d, v in zip(dir_925,  wind_925)]
@@ -185,14 +190,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
 
     # ── figure skeleton ──
     fig = make_subplots(
-        rows=4, cols=1,
+        rows=5, cols=1,
         shared_xaxes=True,
-        row_heights=[0.20, 0.30, 0.25, 0.25],
-        vertical_spacing=0.06,
-        specs=[[{"secondary_y": True}]] * 4,
+        row_heights=[0.15, 0.23, 0.18, 0.22, 0.22],
+        vertical_spacing=0.04,
+        specs=[[{"secondary_y": True}]] * 5,
         subplot_titles=[
             "🚦  Status & fly score",
             "📊  Component scores",
+            "🌡️  Thermal activity",
             "💨  Wind by level  (km/h)",
             "☁️  Cloud cover & precipitation",
         ],
@@ -353,7 +359,69 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 3 — wind by level
+    # ROW 3 — thermal activity
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # regime-colored background (sole bar in this subplot → no grouping issue)
+    _REGIME_BG = {
+        "blue":    "rgba(79,195,247,0.13)",
+        "cumulus": "rgba(129,199,132,0.13)",
+        "tappo":   "rgba(120,120,120,0.10)",
+        "off":     "rgba(0,0,0,0)",
+    }
+    regime_bg_colors = [_REGIME_BG.get(h.get("thermal_regime", "off"), "rgba(0,0,0,0)") for h in hrs]
+    fig.add_trace(
+        go.Bar(
+            x=lbl, y=[900] * len(hrs),
+            marker=dict(color=regime_bg_colors, line=dict(width=0)),
+            hoverinfo="skip", showlegend=False, name="_regime_bg",
+        ),
+        row=3, col=1,
+    )
+
+    # shortwave radiation — primary y, amber area
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=shortwave_vals, name="shortwave (W/m²)",
+            fill="tozeroy", fillcolor="rgba(255,213,79,0.30)",
+            line=dict(color="#FFD54F", width=1.5),
+            mode="lines",
+            legend="legend3",
+            hovertemplate="shortwave: <b>%{y:.0f}</b> W/m²<extra></extra>",
+        ),
+        row=3, col=1,
+    )
+
+    # temp-dewpoint spread — third axis (y11, overlaying row3 primary y5)
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=spread_vals, name="T−Td spread (°C)",
+            mode="lines+markers",
+            line=dict(color="#80DEEA", width=1.8, dash="dot"),
+            marker=dict(size=4, color="#80DEEA"),
+            legend="legend3",
+            hovertemplate="spread: <b>%{y:.1f}</b> °C  →  cloudbase ≈ %{customdata:.0f} m<extra></extra>",
+            customdata=[s * 125 for s in spread_vals],
+        ),
+        row=3, col=1,
+    )
+    fig.data[-1].yaxis = "y11"   # dedicated spread axis
+
+    # CAPE — secondary y, red fill
+    fig.add_trace(
+        go.Scatter(
+            x=lbl, y=cape_vals, name="CAPE (J/kg)",
+            fill="tozeroy", fillcolor="rgba(239,83,80,0.22)",
+            line=dict(color="#EF5350", width=1.5),
+            mode="lines",
+            legend="legend3",
+            hovertemplate="CAPE: <b>%{y:.0f}</b> J/kg<extra></extra>",
+        ),
+        row=3, col=1, secondary_y=True,
+    )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ROW 4 — wind by level
     # ─────────────────────────────────────────────────────────────────────────
 
     # gust-range fill polygon (gusts top, wind_10m bottom, reversed)
@@ -365,7 +433,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="rgba(0,0,0,0)"),
             hoverinfo="skip", showlegend=False, name="_gustfill",
         ),
-        row=3, col=1,
+        row=4, col=1,
     )
 
     for name, data, dir_labels, color, dash, width in [
@@ -381,12 +449,12 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 customdata=dir_labels,
                 line=dict(color=color, dash=dash, width=width),
                 mode="lines",
-                legend="legend3",
+                legend="legend4",
                 hovertemplate=(
                     f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>"
                 ),
             ),
-            row=3, col=1,
+            row=4, col=1,
         )
 
     for y_val, color, label in [
@@ -394,7 +462,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         (site.wind_925_max_kmh,    "#FF8A65", f"925 max {site.wind_925_max_kmh:.0f}"),
     ]:
         fig.add_hline(
-            y=y_val, row=3, col=1,
+            y=y_val, row=4, col=1,
             line=dict(color=color, dash="dot", width=1.5),
             annotation_text=label,
             annotation_font=dict(color=color, size=10),
@@ -402,7 +470,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 4 — cloud cover (stacked) + precip bars (secondary y)
+    # ROW 5 — cloud cover (stacked) + precip bars (secondary y)
     # ─────────────────────────────────────────────────────────────────────────
 
     for name, data, fill_color in [
@@ -417,24 +485,23 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 fillcolor=fill_color,
                 line=dict(color=fill_color, width=0.3),
                 mode="lines",
-                legend="legend4",
+                legend="legend5",
                 hovertemplate=f"{name}: <b>%{{y:.0f}}</b>%<extra></extra>",
             ),
-            row=4, col=1,
+            row=5, col=1,
         )
 
     fig.add_trace(
         go.Bar(
             x=lbl, y=precip, name="precip (mm/h)",
             marker=dict(color="#64B5F6", opacity=0.85, line=dict(width=0)),
-            legend="legend4",
+            legend="legend5",
             hovertemplate="precip: <b>%{y:.1f}</b> mm/h<extra></extra>",
         ),
-        row=4, col=1, secondary_y=True,
+        row=5, col=1, secondary_y=True,
     )
 
-    # cloudbase — added on primary y of row 4 so xaxis is set correctly,
-    # then redirected to dedicated third axis (yaxis9) to keep scales separate
+    # cloudbase — added on primary y of row 5, redirected to y12 (third axis)
     fig.add_trace(
         go.Scatter(
             x=lbl, y=cloudbase, name="cloudbase (m)",
@@ -442,24 +509,24 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#FFCC02", dash="dashdot", width=2),
             marker=dict(size=4, color="#FFCC02"),
             connectgaps=False,
-            legend="legend4",
+            legend="legend5",
             hovertemplate="cloudbase: <b>%{y:.0f} m</b><extra></extra>",
         ),
-        row=4, col=1,
+        row=5, col=1,
     )
-    fig.data[-1].yaxis = "y9"   # detach from cloud-% axis → dedicated metre axis
+    fig.data[-1].yaxis = "y12"  # detach from cloud-% axis → dedicated metre axis
 
     # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
-    # row_heights=[0.20,0.30,0.25,0.25], spacing=0.06 → available height=0.82
-    # Row 4 top≈0.205, Row 3≈0.470, Row 2≈0.776, Row 1≈1.000
+    # row_heights=[0.15,0.23,0.18,0.22,0.22], spacing=0.04
+    # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
     _LEG = dict(orientation="h", xanchor="right", x=0.99,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
-        height=1050,
+        height=1250,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
@@ -472,11 +539,26 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             namelength=-1,
         ),
         legend =dict(**_LEG, yanchor="top", y=0.998),   # row 1: status & fly
-        legend2=dict(**_LEG, yanchor="top", y=0.773),   # row 2: scores
-        legend3=dict(**_LEG, yanchor="top", y=0.467),   # row 3: wind
-        legend4=dict(**_LEG, yanchor="top", y=0.202),   # row 4: cloud & weather
-        yaxis9=dict(
-            overlaying="y7",
+        legend2=dict(**_LEG, yanchor="top", y=0.832),   # row 2: component scores
+        legend3=dict(**_LEG, yanchor="top", y=0.599),   # row 3: thermal
+        legend4=dict(**_LEG, yanchor="top", y=0.391),   # row 4: wind
+        legend5=dict(**_LEG, yanchor="top", y=0.166),   # row 5: cloud & weather
+        # spread — third axis on row 3 (overlaying row3 primary = y5)
+        yaxis11=dict(
+            overlaying="y5",
+            side="right",
+            anchor="free",
+            position=0.97,
+            range=[0, 20],
+            showgrid=False,
+            zeroline=False,
+            title_text="spread °C",
+            title_font=dict(color="#80DEEA", size=9),
+            tickfont=dict(color="#80DEEA", size=9),
+        ),
+        # cloudbase — third axis on row 5 (overlaying row5 primary = y9)
+        yaxis12=dict(
+            overlaying="y9",
             side="right",
             anchor="free",
             position=1.0,
@@ -490,24 +572,26 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     # x-axes: only show tick labels on the bottom row
-    for row_i in range(1, 5):
+    for row_i in range(1, 6):
         fig.update_xaxes(
             row=row_i, col=1,
             showgrid=False, linecolor=GRID_C,
             tickfont=dict(size=10, color=TEXT),
-            showticklabels=(row_i == 4),
+            showticklabels=(row_i == 5),
             tickangle=-45,
         )
-    fig.update_xaxes(row=4, col=1, showticklabels=True)
+    fig.update_xaxes(row=5, col=1, showticklabels=True)
 
     # primary y-axes
     fig.update_yaxes(row=1, col=1, range=[0, 105],
                      **_axis(title_text="fly score"))
     fig.update_yaxes(row=2, col=1, range=[0, 105],
                      **_axis(title_text="score"))
-    fig.update_yaxes(row=3, col=1,
+    fig.update_yaxes(row=3, col=1, range=[0, 900],
+                     **_axis(title_text="W/m²"))
+    fig.update_yaxes(row=4, col=1,
                      **_axis(title_text="km/h"))
-    fig.update_yaxes(row=4, col=1, range=[0, 100],
+    fig.update_yaxes(row=5, col=1, range=[0, 100],
                      **_axis(title_text="cloud %"))
 
     # secondary y-axes
@@ -519,7 +603,14 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         tickfont=dict(color="#FFA726", size=9),
     )
     fig.update_yaxes(
-        secondary_y=True, row=4, col=1,
+        secondary_y=True, row=3, col=1,
+        range=[0, 800], showgrid=False,
+        title_text="CAPE J/kg",
+        title_font=dict(color="#EF5350", size=10),
+        tickfont=dict(color="#EF5350", size=9),
+    )
+    fig.update_yaxes(
+        secondary_y=True, row=5, col=1,
         showgrid=False,
         title_text="precip mm/h",
         title_font=dict(color="#64B5F6", size=10),
