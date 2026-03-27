@@ -197,7 +197,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         met = (
             f"<br><span style='color:#9E9E9E'>"
             f"10m {lbl_10m[i]} km/h  "
-            f"Gu {lbl_gust[i]} km/h  "
+            f"G {lbl_gust[i]} km/h  "
             f"925 {lbl_925[i]} km/h  "
             f"P {precip[i]:.1f} mm/h</span>"
         )
@@ -272,17 +272,27 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=2, col=1,
     )
 
-    for name, data, color in [
+    # Component bars: full opacity for flyable hours, ghost (35%) for vetoed.
+    # Per-bar rgba colors let us distinguish vetoed bars without hiding them.
+    _RGB = {"#4FC3F7": (79,195,247), "#81C784": (129,199,132),
+            "#FFD54F": (255,213,79),  "#EF9A9A": (239,154,154)}
+
+    for name, data, hex_c in [
         ("launch",     launch_sc,  "#4FC3F7"),
         ("upper wind", upper_sc,   "#81C784"),
         ("thermal",    thermal_sc, "#FFD54F"),
         ("risk",       risk_sc,    "#EF9A9A"),
     ]:
+        r, g, b = _RGB[hex_c]
+        bar_colors = [
+            f"rgba({r},{g},{b},0.82)" if not h["veto"]
+            else f"rgba({r},{g},{b},0.30)"
+            for h in hrs
+        ]
         fig.add_trace(
             go.Bar(
                 x=lbl, y=data, name=name,
-                marker=dict(color=color, line=dict(width=0)),
-                opacity=0.82,
+                marker=dict(color=bar_colors, line=dict(width=0)),
                 legend="legend2",
                 hovertemplate=f"{name}: <b>%{{y:.0f}}</b><extra></extra>",
             ),
@@ -605,8 +615,12 @@ div[data-testid="stMainBlockContainer"]
 # ──────────────────────────────────────────────────────────────────────────────
 # SESSION STATE
 # ──────────────────────────────────────────────────────────────────────────────
-if "pipeline" not in st.session_state:
-    st.session_state.pipeline = None
+# Bump this string whenever evaluate_hour logic changes to force cache invalidation
+_PIPELINE_VERSION = "v3-component-scores-always"
+
+if st.session_state.get("pipeline_version") != _PIPELINE_VERSION:
+    st.session_state.pipeline         = None
+    st.session_state.pipeline_version = _PIPELINE_VERSION
 
 # ──────────────────────────────────────────────────────────────────────────────
 # FETCH
