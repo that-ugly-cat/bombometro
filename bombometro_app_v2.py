@@ -1294,7 +1294,7 @@ with st.expander("💨 Wind by level (dir + km/h)"):
             "800 hPa": [_wlbl(h, "wind_speed_800hPa", "wind_direction_800hPa") for h in _detail_hrs],
             "850 hPa": [_wlbl(h, "wind_speed_850hPa", "wind_direction_850hPa") for h in _detail_hrs],
             "925 hPa": [_wlbl(h, "wind_speed_925hPa", "wind_direction_925hPa") for h in _detail_hrs],
-            "gusts":   [f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}" for h in _detail_hrs],
+            "gusts":   [f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m') or 0:.0f}" for h in _detail_hrs],
             "10m":     [_wlbl(h, "wind_speed_10m",    "wind_direction_10m")    for h in _detail_hrs],
         },
         index=[h["time"][11:13] for h in _detail_hrs],
