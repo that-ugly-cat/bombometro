@@ -197,7 +197,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     fig = make_subplots(
         rows=6, cols=1,
         shared_xaxes=True,
-        row_heights=[0.2, 0.2, 0.2, 0.2, 0.1, 0.2],   # foehn panel (row 5) intentionally shorter
+        row_heights=[0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
         vertical_spacing=0.07,
         specs=[[{"secondary_y": True}]] * 6,
         subplot_titles=[
@@ -443,7 +443,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#FFA726", width=2.0),
             fill="tozeroy", fillcolor="rgba(255,167,38,0.15)",
             legend="legend5",
-            hovertemplate="Δp (N−S): <b>%{y:+.1f}</b> hPa<extra></extra>",
+            hovertemplate="Δp (N−S): <b>%{y:+.0f}</b> hPa<extra></extra>",
         ),
         row=5, col=1,
     )
@@ -451,7 +451,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # single positive threshold line, no label
     fig.add_hline(
         y=_thresh, row=5, col=1,
-        line=dict(color="#FFA726", dash="dot", width=1.2),
+        line=dict(color="#EF5350", dash="dot", width=1.2),
     )
 
     # ─────────────────────────────────────────────────────────────────────────
