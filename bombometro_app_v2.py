@@ -609,15 +609,16 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
-    # row_heights=[0.2]*6, vertical_spacing=0.07, 5 gaps → plot_area=0.65, each row=0.1083.
-    # Panel tops: row1=1.000, row2=0.822, row3=0.643, row4=0.465, row5=0.287, row6=0.108.
-    # Legends  : yanchor="bottom", y = panel_top + 0.005 → bottom of legend sits at gap base.
-    # Titles   : annotation loop adds +0.035 → mid-gap (0.035 = half of 0.07 spacing).
+    # row_heights=[0.2]*7, vertical_spacing=0.06, 6 gaps → plot_area=0.64, each row=0.0914.
+    # Panel tops: row1=1.000, row2=0.849, row3=0.697, row4=0.546, row5=0.394,
+    #             row6=0.243, row7=0.091.
+    # Legends  : yanchor="bottom", y = panel_top + 0.005 → bottom of legend in gap base.
+    # Titles   : annotation loop adds +0.030 → mid-gap (0.030 = half of 0.06 spacing).
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
-        height=1550,
+        height=1800,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
@@ -629,53 +630,51 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin  (above row 1)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.827),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.648),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.470),  # gap above row 4
-        legend5=dict(**_LEG, yanchor="bottom", y=0.292),  # gap above row 5 (foehn)
-        legend6=dict(**_LEG, yanchor="bottom", y=0.113),  # gap above row 6 (wind)
+        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin (above row 1)
+        legend2=dict(**_LEG, yanchor="bottom", y=0.854),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.702),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.551),  # gap above row 4 (atm. profile)
+        legend5=dict(**_LEG, yanchor="bottom", y=0.399),  # gap above row 5 (cloud)
+        legend6=dict(**_LEG, yanchor="bottom", y=0.248),  # gap above row 6 (foehn)
+        legend7=dict(**_LEG, yanchor="bottom", y=0.096),  # gap above row 7 (wind)
     )
 
     # x-axes: tick labels only on the bottom row
-    for row_i in range(1, 7):
+    for row_i in range(1, 8):
         fig.update_xaxes(
             row=row_i, col=1,
             showgrid=False, linecolor=GRID_C,
             tickfont=dict(size=10, color=TEXT),
-            showticklabels=(row_i == 6),
+            showticklabels=(row_i == 7),
             tickangle=0,
         )
 
     # primary y-axes
-    fig.update_yaxes(row=1, col=1, range=[0, 105],   **_axis(nticks=4))
-    fig.update_yaxes(row=2, col=1, range=[0, 105],   **_axis(nticks=4))
-    fig.update_yaxes(row=3, col=1, range=[0, 900],   **_axis(nticks=4))
-    fig.update_yaxes(row=4, col=1, range=[0, 100],   **_axis(nticks=4))
-    fig.update_yaxes(row=5, col=1, range=[-12, 12],
+    fig.update_yaxes(row=1, col=1, range=[0, 105],  **_axis(nticks=4))
+    fig.update_yaxes(row=2, col=1, range=[0, 105],  **_axis(nticks=4))
+    fig.update_yaxes(row=3, col=1, range=[0, 900],  **_axis(nticks=4))
+    fig.update_yaxes(row=4, col=1, range=[0, 100],  **_axis(nticks=5))   # RH %
+    fig.update_yaxes(row=5, col=1, range=[0, 100],  **_axis(nticks=4))   # cloud %
+    fig.update_yaxes(row=6, col=1, range=[-12, 12],
                      **_axis(nticks=5, zeroline=True, zerolinecolor=GRID_C, zerolinewidth=1.5))
-    fig.update_yaxes(row=6, col=1,                   **_axis(nticks=5))
+    fig.update_yaxes(row=7, col=1,                  **_axis(nticks=5))
 
     # secondary y-axes
-    fig.update_yaxes(
-        secondary_y=True, row=2, col=1,
-        range=[0, 100], showgrid=False, nticks=3,
-        tickfont=dict(color="#FFA726", size=8),
-    )
-    fig.update_yaxes(
-        secondary_y=True, row=3, col=1,
-        range=[0, 30], showgrid=False, nticks=4,
-        tickfont=dict(color="#EF5350", size=8),
-    )
-    fig.update_yaxes(
-        secondary_y=True, row=4, col=1,
-        showgrid=False, nticks=3,
-        tickfont=dict(color="#64B5F6", size=8),
-    )
+    fig.update_yaxes(secondary_y=True, row=2, col=1,
+                     range=[0, 100], showgrid=False, nticks=3,
+                     tickfont=dict(color="#FFA726", size=8))
+    fig.update_yaxes(secondary_y=True, row=3, col=1,
+                     range=[0, 30], showgrid=False, nticks=4,
+                     tickfont=dict(color="#EF5350", size=8))
+    fig.update_yaxes(secondary_y=True, row=4, col=1,     # freezing level (m)
+                     range=[0, 5000], showgrid=False, nticks=4,
+                     tickfont=dict(color="#B0BEC5", size=8))
+    fig.update_yaxes(secondary_y=True, row=5, col=1,     # precip (mm/h)
+                     showgrid=False, nticks=3,
+                     tickfont=dict(color="#64B5F6", size=8))
 
-    # Subplot title annotations: push upward into mid-gap so order is title→legend→chart.
-    # make_subplots places them at domain_top (yanchor="bottom"); +0.045 lifts them to
-    # mid-gap (gap=0.07 → mid-gap = panel_top + 0.035, a bit higher to give legend room).
+    # Subplot title annotations: push upward into mid-gap (title → legend → chart).
+    # make_subplots places them at domain_top (yanchor="bottom"); +0.030 = mid of 0.06 gap.
     for ann in fig.layout.annotations:
         ann.font.size  = 11
         ann.font.color = TEXT
@@ -683,7 +682,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         ann.xanchor    = "left"
         ann.xref       = "paper"
         ann.yanchor    = "bottom"
-        ann.y         += 0.035   # lift into gap; row-1 title lands in top margin
+        ann.y         += 0.030   # lift into gap; row-1 title lands in top margin
 
     return fig
 
