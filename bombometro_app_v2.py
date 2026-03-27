@@ -17,6 +17,7 @@ from core import (
     day_summary,
     fetch_foehn_pressure_series,
     fetch_forecast,
+    get_sun_times,
     run_pipeline,
     wind_dir_label,
 )
@@ -157,8 +158,9 @@ def _alerts_str(h: dict) -> str:
 # MAIN CHART  — one Plotly figure, 4 subplots, shared x-axis
 # ──────────────────────────────────────────────────────────────────────────────
 
-def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
-    """Return a single Plotly figure with 4 vertically-stacked subplots."""
+def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
+                   sun_times: dict = None):
+    """Return a single Plotly figure with 7 vertically-stacked subplots."""
     rbt  = {r["time"]: r for r in rows_all}
     hrs  = [h for h in evaluated_all
             if h["time"].startswith(day) and 6 <= int(h["time"][11:13]) <= 20]
@@ -651,6 +653,35 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
 
 
     # ─────────────────────────────────────────────────────────────────────────
+    # SUNRISE / SUNSET vertical lines  (span full chart height via yref="paper")
+    # ─────────────────────────────────────────────────────────────────────────
+    if sun_times and lbl:
+        start_hour = int(lbl[0])
+        for key, color, ann_pos in [
+            ("sunrise",    "#FFD54F", "top left"),
+            ("solar_noon", "rgba(255,255,255,0.18)", None),
+            ("sunset",     "#FF8A65", "top right"),
+        ]:
+            dt = sun_times.get(key)
+            if dt is None:
+                continue
+            x_pos = (dt.hour - start_hour) + dt.minute / 60
+            if -0.5 <= x_pos <= len(lbl) - 0.5:
+                vline_kw = dict(
+                    x=x_pos,
+                    line=dict(color=color, dash="dot", width=1.2),
+                )
+                if ann_pos:
+                    vline_kw.update(
+                        annotation_text=dt.strftime("%H:%M"),
+                        annotation_position=ann_pos,
+                        annotation_font=dict(size=9, color=color),
+                        annotation_bgcolor="rgba(0,0,0,0)",
+                        annotation_borderwidth=0,
+                    )
+                fig.add_vline(**vline_kw)
+
+    # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
@@ -1111,6 +1142,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ── sun times ─────────────────────────────────────────────────────────────────
+try:
+    _sun = get_sun_times(SITE.latitude, SITE.longitude, SITE.timezone, d)
+    st.markdown(
+        f"<div style='color:#9E9E9E;font-size:12px;margin:3px 0 6px'>"
+        f"🌅&nbsp;<span style='color:#FFD54F'>{_sun['sunrise'].strftime('%H:%M')}</span>"
+        f"&emsp;☀️&nbsp;<span style='color:#E0E0E0'>{_sun['solar_noon'].strftime('%H:%M')}</span>"
+        f"&emsp;🌆&nbsp;<span style='color:#FF8A65'>{_sun['sunset'].strftime('%H:%M')}</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+except Exception:
+    _sun = None
+
 # ──────────────────────────────────────────────────────────────────────────────
 # AI ADVISOR
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1168,7 +1213,7 @@ else:
             unsafe_allow_html=True,
         )
 
-fig = make_day_chart(d, evaluated, rows, SITE)
+fig = make_day_chart(d, evaluated, rows, SITE, sun_times=_sun)
 if fig:
     st.plotly_chart(fig, use_container_width=True, config={
         "displayModeBar": False,
