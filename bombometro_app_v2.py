@@ -199,8 +199,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             "🚦  Status & fly score",
             "📊  Component scores",
             "🌡️  Thermal activity",
-            "💨  Wind by level  (km/h)",
             "☁️  Cloud cover & precipitation",
+            "💨  Wind by level  (km/h)",
         ],
     )
 
@@ -425,7 +425,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 4 — wind by level
+    # ROW 5 — wind by level
     # ─────────────────────────────────────────────────────────────────────────
 
     # gust-range fill polygon (gusts top, wind_10m bottom, reversed)
@@ -437,7 +437,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="rgba(0,0,0,0)"),
             hoverinfo="skip", showlegend=False, name="_gustfill",
         ),
-        row=4, col=1,
+        row=5, col=1,
     )
 
     for name, data, dir_labels, color, dash, width in [
@@ -453,12 +453,12 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 customdata=dir_labels,
                 line=dict(color=color, dash=dash, width=width),
                 mode="lines",
-                legend="legend4",
+                legend="legend5",
                 hovertemplate=(
                     f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>"
                 ),
             ),
-            row=4, col=1,
+            row=5, col=1,
         )
 
     for y_val, color, label in [
@@ -466,7 +466,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         (site.wind_925_max_kmh,    "#FF8A65", f"925 max {site.wind_925_max_kmh:.0f}"),
     ]:
         fig.add_hline(
-            y=y_val, row=4, col=1,
+            y=y_val, row=5, col=1,
             line=dict(color=color, dash="dot", width=1.5),
             annotation_text=label,
             annotation_font=dict(color=color, size=10),
@@ -474,7 +474,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ROW 5 — cloud cover (stacked) + precip bars (secondary y)
+    # ROW 4 — cloud cover (stacked) + precip bars (secondary y)
     # ─────────────────────────────────────────────────────────────────────────
 
     for name, data, fill_color in [
@@ -489,20 +489,20 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 fillcolor=fill_color,
                 line=dict(color=fill_color, width=0.3),
                 mode="lines",
-                legend="legend5",
+                legend="legend4",
                 hovertemplate=f"{name}: <b>%{{y:.0f}}</b>%<extra></extra>",
             ),
-            row=5, col=1,
+            row=4, col=1,
         )
 
     fig.add_trace(
         go.Bar(
             x=lbl, y=precip, name="precip (mm/h)",
             marker=dict(color="#64B5F6", opacity=0.85, line=dict(width=0)),
-            legend="legend5",
+            legend="legend4",
             hovertemplate="precip: <b>%{y:.1f}</b> mm/h<extra></extra>",
         ),
-        row=5, col=1, secondary_y=True,
+        row=4, col=1, secondary_y=True,
     )
 
 
@@ -557,8 +557,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     fig.update_yaxes(row=1, col=1, range=[0, 105],  **_axis(nticks=4))
     fig.update_yaxes(row=2, col=1, range=[0, 105],  **_axis(nticks=4))
     fig.update_yaxes(row=3, col=1, range=[0, 900],  **_axis(nticks=4))
-    fig.update_yaxes(row=4, col=1,                  **_axis(nticks=5))
-    fig.update_yaxes(row=5, col=1, range=[0, 100],  **_axis(nticks=4))
+    fig.update_yaxes(row=4, col=1, range=[0, 100],  **_axis(nticks=4))
+    fig.update_yaxes(row=5, col=1,                  **_axis(nticks=5))
 
     # secondary y-axes (no titles, coloured tick labels identify the axis)
     fig.update_yaxes(
@@ -572,7 +572,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         tickfont=dict(color="#EF5350", size=8),
     )
     fig.update_yaxes(
-        secondary_y=True, row=5, col=1,
+        secondary_y=True, row=4, col=1,
         showgrid=False, nticks=3,
         tickfont=dict(color="#64B5F6", size=8),
     )
@@ -952,15 +952,6 @@ def _all_reasons(h: dict) -> str:
         if fpen > 0: parts.append(f"foehn penalty −{fpen:.1f}")
     return " · ".join(str(p) for p in parts) if parts else ""
 
-with st.expander("🔍 Status & alerts"):
-    df_status = pd.DataFrame([{
-        "time":             h["time"][11:13],
-        "status":           ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
-        "reasons / alerts": _all_reasons(h),
-    } for h in _detail_hrs])
-    st.dataframe(df_status, use_container_width=True, hide_index=True)
-
-# ── Expander 2: wind by level ─────────────────────────────────────────────────
 def _wlbl(h, key_spd, key_dir) -> str:
     row = _detail_rbt.get(h["time"], {})
     spd = row.get(key_spd)
@@ -971,32 +962,42 @@ def _wlbl(h, key_spd, key_dir) -> str:
     return f"{dir_s}{spd:.0f}"
 
 def _wind_cell_color(val: str) -> str:
-    """Background colour for a wind cell based on the speed component."""
     try:
         spd = float(str(val).split()[-1])
     except (ValueError, IndexError):
         return ""
     if spd < 15:
-        return "background-color: rgba(76,175,80,0.30)"    # calm — green
+        return "background-color: rgba(76,175,80,0.30)"
     if spd < 25:
-        return "background-color: rgba(255,235,59,0.30)"   # moderate — yellow
+        return "background-color: rgba(255,235,59,0.30)"
     if spd < 35:
-        return "background-color: rgba(255,152,0,0.35)"    # strong — orange
-    return     "background-color: rgba(244,67,54,0.40)"    # very strong — red
+        return "background-color: rgba(255,152,0,0.35)"
+    return     "background-color: rgba(244,67,54,0.40)"
 
-_wind_cols = ["10m", "gusts", "925 hPa", "850 hPa", "800 hPa", "700 hPa"]
-
-with st.expander("💨 Wind by level"):
-    df_wind = pd.DataFrame([{
-        "time":    h["time"][11:13],
-        "10m":     _wlbl(h, "wind_speed_10m",    "wind_direction_10m"),
-        "gusts":   f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}",
-        "925 hPa": _wlbl(h, "wind_speed_925hPa", "wind_direction_925hPa"),
-        "850 hPa": _wlbl(h, "wind_speed_850hPa", "wind_direction_850hPa"),
-        "800 hPa": _wlbl(h, "wind_speed_800hPa", "wind_direction_800hPa"),
-        "700 hPa": _wlbl(h, "wind_speed_700hPa", "wind_direction_700hPa"),
-    } for h in _detail_hrs])
+with st.expander("💨 Wind by level (dir + km/h)"):
+    # Build hours×levels, then transpose → levels as rows, hours as columns.
+    # The index (level names) becomes the sticky first column in st.dataframe.
+    df_wind = pd.DataFrame(
+        {
+            "10m":     [_wlbl(h, "wind_speed_10m",    "wind_direction_10m")    for h in _detail_hrs],
+            "gusts":   [f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}" for h in _detail_hrs],
+            "925 hPa": [_wlbl(h, "wind_speed_925hPa", "wind_direction_925hPa") for h in _detail_hrs],
+            "850 hPa": [_wlbl(h, "wind_speed_850hPa", "wind_direction_850hPa") for h in _detail_hrs],
+            "800 hPa": [_wlbl(h, "wind_speed_800hPa", "wind_direction_800hPa") for h in _detail_hrs],
+            "700 hPa": [_wlbl(h, "wind_speed_700hPa", "wind_direction_700hPa") for h in _detail_hrs],
+        },
+        index=[h["time"][11:13] for h in _detail_hrs],
+    ).T   # rows = levels, columns = hours
     st.dataframe(
-        df_wind.style.map(_wind_cell_color, subset=_wind_cols),
-        use_container_width=True, hide_index=True,
+        df_wind.style.map(_wind_cell_color),
+        use_container_width=True,
+        # hide_index=False (default) → index = level names, sticky on horizontal scroll
     )
+
+with st.expander("🔍 Status & alerts"):
+    df_status = pd.DataFrame([{
+        "time":             h["time"][11:13],
+        "status":           ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
+        "reasons / alerts": _all_reasons(h),
+    } for h in _detail_hrs])
+    st.dataframe(df_status, use_container_width=True, hide_index=True)
