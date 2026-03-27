@@ -7,7 +7,7 @@
     "launch_dir_tolerance_deg": 90.0,
     "launch_wind_min_kmh": 0.0,
     "launch_wind_max_kmh": 25.0,
-    "gust_max_kmh": 30.0,
+    "gust_max_kmh": 28.0,
     "wind_925_max_kmh": 30.0,
     "wind_850_max_kmh": 35.0,
     "wind_800_max_kmh": 38.0,
