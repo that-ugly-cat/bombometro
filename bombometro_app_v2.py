@@ -452,21 +452,28 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # ─────────────────────────────────────────────────────────────────────────
 
     def _inv_bg(i0: float, i1: float, i2: float) -> str:
-        """Background colour based on inversion layer depth."""
-        if i0 > 1:                          # surface–925: blocks thermals from launching
-            return "rgba(180,60,40,0.18)"
-        if i1 > 1:                          # 925–850: elevated inversion, caps low thermals
-            return "rgba(200,120,40,0.13)"
-        if i2 > 1:                          # 850–700: high inversion, limits thermal height
-            return "rgba(200,170,50,0.10)"
+        """Background colour based on which inversion layer is present."""
+        if i0 > 1:   return "rgba(200,60,40,0.30)"   # surface–925: strong red
+        if i1 > 1:   return "rgba(210,120,40,0.24)"  # 925–850: orange
+        if i2 > 1:   return "rgba(200,180,50,0.18)"  # 850–700: yellow
         return "rgba(0,0,0,0)"
 
     inv_bg_colors = [_inv_bg(s, e, h) for s, e, h in zip(inv_sfc_925, inv_925_850, inv_850_700)]
+    # hover: summarise inversion state per hour
+    def _inv_hover(i0, i1, i2):
+        parts = []
+        if i0 > 1: parts.append(f"sfc–925 cap: +{i0:.1f}°C @ ~750m")
+        if i1 > 1: parts.append(f"925–850 cap: +{i1:.1f}°C @ ~1500m")
+        if i2 > 1: parts.append(f"850–700 cap: +{i2:.1f}°C @ ~3000m")
+        return " | ".join(parts) if parts else "no inversion"
+
+    inv_hover = [_inv_hover(s, e, h) for s, e, h in zip(inv_sfc_925, inv_925_850, inv_850_700)]
     fig.add_trace(
         go.Bar(
             x=lbl, y=[100] * len(hrs),
             marker=dict(color=inv_bg_colors, line=dict(width=0)),
-            hoverinfo="skip", showlegend=False, name="_inv_bg",
+            customdata=inv_hover, showlegend=False, name="inversion",
+            hovertemplate="inversion: <b>%{customdata}</b><extra></extra>",
         ),
         row=4, col=1,
     )
@@ -499,6 +506,29 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         ),
         row=4, col=1, secondary_y=True,
     )
+
+    # inversion cap lines on altitude axis: horizontal segment at cap altitude,
+    # visible only where the inversion is present (None = gap, connectgaps=False)
+    for cap_alt, inv_vals, color, cap_name in [
+        (750,  inv_sfc_925, "#EF5350", "sfc–925 cap"),
+        (1500, inv_925_850, "#FF9800", "925–850 cap"),
+        (3000, inv_850_700, "#FDD835", "850–700 cap"),
+    ]:
+        y_line   = [cap_alt if v > 1 else None for v in inv_vals]
+        cust     = [f"{v:+.1f}°C" if v > 1 else None for v in inv_vals]
+        fig.add_trace(
+            go.Scatter(
+                x=lbl, y=y_line, name=cap_name,
+                mode="lines+markers",
+                line=dict(color=color, width=3.0),
+                marker=dict(size=5, color=color),
+                connectgaps=False,
+                legend="legend4",
+                customdata=cust,
+                hovertemplate=f"{cap_name}: <b>%{{customdata}}</b><extra></extra>",
+            ),
+            row=4, col=1, secondary_y=True,
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # ROW 6 — foehn pressure gradient
