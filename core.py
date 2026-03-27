@@ -270,11 +270,11 @@ def hard_veto(row: Dict[str, Any], site: SiteConfig) -> Tuple[bool, Optional[str
     dir_diff = angle_diff_deg(wind_dir, site.launch_dir_center_deg)
     if dir_diff > site.launch_dir_tolerance_deg:
         reasons.append("wind out of sector");         veto_type = "wind"
-    if wind_10m > site.launch_wind_max_kmh:
+    if round(wind_10m) > site.launch_wind_max_kmh:
         reasons.append("launch wind above limit");    veto_type = veto_type or "wind"
-    if wind_925 > site.wind_925_max_kmh:
+    if round(wind_925) > site.wind_925_max_kmh:
         reasons.append("925 wind above limit");       veto_type = veto_type or "wind"
-    if gusts >= site.gust_max_kmh:
+    if round(gusts) >= site.gust_max_kmh:
         reasons.append("gusts above limit");          veto_type = veto_type or "gusts"
     if precip > site.precip_max_mm:
         reasons.append("rain");                       veto_type = veto_type or "precipitation"
