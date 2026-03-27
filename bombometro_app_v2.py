@@ -785,6 +785,60 @@ Vertical lapse rate from ground to ~3000 m (700hPa):
 🔵 blue thermal · 🟢 cumulus · ⬛ cap · transparent off
 """)
 
+    with st.popover("🧊 Atmospheric profile", use_container_width=True):
+        st.markdown("""
+**Relative humidity by level** (left axis, 0–100%):
+
+| Colour | Level | Height |
+|--------|-------|--------|
+| Teal | 925 hPa | ~750 m |
+| Green | 850 hPa | ~1500 m |
+| Yellow-green | 800 hPa | ~1950 m |
+| Orange | 700 hPa | ~3000 m |
+
+High RH at altitude → risk of early cloudbase, CB development, or blocked thermals.
+
+**Freezing level** (grey dashed, right axis m): altitude of the 0 °C isotherm.
+Flying near or above the freezing level = risk of icing and unstable convection.
+
+**Temperature inversions** (right axis, coloured horizontal lines):
+An inversion is a layer where temperature *increases* with altitude, capping thermals.
+
+| Colour | Layer | Approx. cap altitude |
+|--------|-------|----------------------|
+| Red | surface–925 hPa | ~750 m — blocks thermals from launching |
+| Orange | 925–850 hPa | ~1500 m — caps low thermals |
+| Yellow | 850–700 hPa | ~3000 m — limits thermal height |
+
+**Background shading**: same inversion hierarchy — red = surface cap, orange = elevated, yellow = high.
+""")
+
+    with st.popover("☁️ Cloud cover & precip", use_container_width=True):
+        st.markdown("""
+**Stacked area** (cloud cover %):
+- Ice-blue → high cloud / cirrus (> 6000 m)
+- Blue → mid cloud / altostratus (2000–6000 m)
+- Dark indigo → low cloud / stratus (< 2000 m)
+
+Layers are stacked: total can exceed 100% when all levels are present.
+
+**Blue bars** (right axis): precipitation in mm/h.
+""")
+
+    with st.popover("🌬️ Foehn pressure gradient", use_container_width=True):
+        st.markdown("""
+**Δp N−S** (orange line + fill): pressure difference between the windward (north) and
+lee (south) reference stations, in hPa.
+
+- **Positive** → higher pressure north of the Alps → foehn tendency
+- **Negative** → higher pressure south → blocking or anti-foehn pattern
+- **Red dashed line** → site-specific foehn threshold (`foehn_delta_p_max_hpa`);
+  above this value the foehn score reaches its maximum and a veto may apply at 120%
+
+Reference stations are configured per site (e.g. Innsbruck → Bolzano for eastern Alpine
+sites, Martigny → Aosta for western Alpine sites).
+""")
+
     with st.popover("💨 Wind by level", use_container_width=True):
         st.markdown("""
 Wind speed per pressure level:
@@ -798,18 +852,6 @@ Wind speed per pressure level:
 | Blue dashed | 10m gusts |
 
 Dashed horizontal lines = site-specific veto thresholds.
-""")
-
-    with st.popover("☁️ Cloud cover & precip", use_container_width=True):
-        st.markdown("""
-**Stacked area** (cloud cover %):
-- Ice-blue → high cloud / cirrus (> 6000 m)
-- Blue → mid cloud / altostratus (2000–6000 m)
-- Dark indigo → low cloud / stratus (< 2000 m)
-
-Layers are stacked: total can exceed 100% when all levels are present.
-
-**Blue bars** (right axis): precipitation in mm/h.
 """)
 
     with st.popover("📐 Pressure levels (AMSL)", use_container_width=True):
