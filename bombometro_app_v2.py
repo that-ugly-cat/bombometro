@@ -1135,14 +1135,14 @@ else:
 
     adv_col, _ = st.columns([1, 5])
     with adv_col:
-        ask_btn = st.button("🤖 Ask Marco", key=f"ask_marco_{d}",
+        ask_btn = st.button("🤖 Ask Bernacca", key=f"ask_marco_{d}",
                             use_container_width=True)
 
     if ask_btn and _adv_key not in st.session_state:
         if not _api_key:
             st.warning("OpenAI API key not configured (`OPENAI_API_KEY` in Streamlit secrets).")
         else:
-            with st.spinner("Marco is checking the skies…"):
+            with st.spinner("Bernacca is checking the skies…"):
                 ctx = build_day_context(evaluated, rows, SITE, d)
                 st.session_state[_adv_key] = _cached_advisory(ctx, _api_key)
 
