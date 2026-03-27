@@ -229,7 +229,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         rows=7, cols=1,
         shared_xaxes=True,
         row_heights=[0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-        vertical_spacing=0.06,
+        vertical_spacing=0.08,
         specs=[[{"secondary_y": True}]] * 7,
         subplot_titles=[
             "🚦  Status & fly score",
@@ -654,16 +654,16 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
     # Per-subplot legend y-positions (paper coords).
-    # row_heights=[0.2]*7, vertical_spacing=0.06, 6 gaps → plot_area=0.64, each row=0.0914.
-    # Panel tops: row1=1.000, row2=0.849, row3=0.697, row4=0.546, row5=0.394,
-    #             row6=0.243, row7=0.091.
-    # Legends  : yanchor="bottom", y = panel_top + 0.005 → bottom of legend in gap base.
-    # Titles   : annotation loop adds +0.030 → mid-gap (0.030 = half of 0.06 spacing).
+    # vertical_spacing=0.08, 6 gaps → plot_area=0.52, each row h=0.07429.
+    # Panel tops: row1=1.000, row2=0.846, row3=0.691, row4=0.537, row5=0.383,
+    #             row6=0.229, row7=0.074.
+    # Legends : yanchor="bottom", y = panel_top + 0.005 → sits just above the panel.
+    # Titles  : annotation loop adds +0.040 → mid-gap (half of 0.08 spacing).
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
-        height=1800,
+        height=2200,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
@@ -676,21 +676,21 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             namelength=-1,
         ),
         legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin (above row 1)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.854),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.702),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.551),  # gap above row 4 (atm. profile)
-        legend5=dict(**_LEG, yanchor="bottom", y=0.399),  # gap above row 5 (cloud)
-        legend6=dict(**_LEG, yanchor="bottom", y=0.248),  # gap above row 6 (foehn)
-        legend7=dict(**_LEG, yanchor="bottom", y=0.096),  # gap above row 7 (wind)
+        legend2=dict(**_LEG, yanchor="bottom", y=0.851),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.696),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.542),  # gap above row 4 (atm. profile)
+        legend5=dict(**_LEG, yanchor="bottom", y=0.388),  # gap above row 5 (cloud)
+        legend6=dict(**_LEG, yanchor="bottom", y=0.234),  # gap above row 6 (foehn)
+        legend7=dict(**_LEG, yanchor="bottom", y=0.079),  # gap above row 7 (wind)
     )
 
-    # x-axes: tick labels only on the bottom row
+    # x-axes: tick labels on every row so the hour is always readable
     for row_i in range(1, 8):
         fig.update_xaxes(
             row=row_i, col=1,
-            showgrid=False, linecolor=GRID_C,
+            showgrid=False, linecolor=GRID_C, showline=True,
             tickfont=dict(size=10, color=TEXT),
-            showticklabels=(row_i == 7),
+            showticklabels=True,
             tickangle=0,
         )
 
@@ -718,8 +718,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                      showgrid=False, nticks=3,
                      tickfont=dict(color="#64B5F6", size=8))
 
-    # Subplot title annotations: push upward into mid-gap (title → legend → chart).
-    # make_subplots places them at domain_top (yanchor="bottom"); +0.030 = mid of 0.06 gap.
+    # Subplot title annotations: push upward into mid-gap.
+    # make_subplots places them at domain_top (yanchor="bottom"); +0.040 = mid of 0.08 gap.
     for ann in fig.layout.annotations:
         ann.font.size  = 11
         ann.font.color = TEXT
@@ -727,7 +727,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         ann.xanchor    = "left"
         ann.xref       = "paper"
         ann.yanchor    = "bottom"
-        ann.y         += 0.030   # lift into gap; row-1 title lands in top margin
+        ann.y         += 0.040   # lift into gap; row-1 title lands in top margin
 
     return fig
 
