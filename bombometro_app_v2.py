@@ -534,8 +534,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # Per-subplot legend y-positions (paper coords).
     # row_heights=[0.15,0.23,0.18,0.22,0.22], spacing=0.04
     # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
-    # x=0.89 aligns legend right edge with plot area corner (r margin ≈ 110px)
-    # y values sit just above each panel top (in the inter-panel spacing)
+    # Legends 2-5: yanchor="top", y slightly above each panel top (in spacing).
+    # Legend 1: yanchor="bottom", y=1.0 → floats in top margin (t=40).
     _LEG = dict(orientation="h", xanchor="right", x=0.89,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
@@ -544,7 +544,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=55, r=110, t=20, b=20),
+        margin=dict(l=55, r=65, t=40, b=20),
         barmode="group",
         hovermode="x unified",
         hoverlabel=dict(
@@ -552,17 +552,17 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="top", y=0.998),   # row 1 top
-        legend2=dict(**_LEG, yanchor="top", y=0.858),   # above row 2 (spacing)
-        legend3=dict(**_LEG, yanchor="top", y=0.622),   # above row 3
-        legend4=dict(**_LEG, yanchor="top", y=0.414),   # above row 4
-        legend5=dict(**_LEG, yanchor="top", y=0.188),   # above row 5
+        legend =dict(**_LEG, yanchor="bottom", y=1.0),  # row 1: floats in top margin
+        legend2=dict(**_LEG, yanchor="top",    y=0.858),   # above row 2 (spacing)
+        legend3=dict(**_LEG, yanchor="top",    y=0.622),   # above row 3
+        legend4=dict(**_LEG, yanchor="top",    y=0.414),   # above row 4
+        legend5=dict(**_LEG, yanchor="top",    y=0.188),   # above row 5
         # cloudbase — third axis on row 5 (overlaying row5 primary = y9)
         yaxis12=dict(
             overlaying="y9",
             side="right",
             anchor="free",
-            position=1.0,
+            position=0.97,
             range=[0, 4500],
             showgrid=False,
             zeroline=False,
