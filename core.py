@@ -55,6 +55,10 @@ class SiteConfig:
     dewpoint_spread_good: float
     cape_max: float
 
+    # Human-readable names for foehn reference stations (display / advisory only).
+    foehn_north_name: str = ""
+    foehn_south_name: str = ""
+
 
 _SITES_PATH = Path(__file__).with_name("sites.json")
 SITE_PRESETS: Dict[str, Dict[str, Any]] = json.loads(_SITES_PATH.read_text(encoding="utf-8"))
