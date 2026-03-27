@@ -3,3 +3,4 @@ matplotlib>=3.8
 numpy>=1.26
 pandas>=2.2
 plotly>=5.18
+openai>=1.30
