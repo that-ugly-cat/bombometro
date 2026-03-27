@@ -1215,7 +1215,7 @@ else:
 
 fig = make_day_chart(d, evaluated, rows, SITE, sun_times=_sun)
 if fig:
-    st.plotly_chart(fig, use_container_width=True, config={
+    st.plotly_chart(fig, width="stretch", config={
         "displayModeBar": False,
         "scrollZoom": False,
     })
@@ -1282,7 +1282,7 @@ with st.expander("💨 Wind by level (dir + km/h)"):
         },
         index=[h["time"][11:13] for h in _detail_hrs],
     ).T
-    st.dataframe(df_wind.style.map(_wind_cell_color), use_container_width=True)
+    st.dataframe(df_wind.style.map(_wind_cell_color), width="stretch")
 
 with st.expander("🔍 Status & alerts"):
     # st.table renders a static HTML table — text wraps naturally, nothing is clipped.
