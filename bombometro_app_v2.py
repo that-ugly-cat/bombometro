@@ -188,7 +188,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             top = (
                 f"<b>fly {_v(h['fly_score']):.0f}</b>"
                 f"  launch {_v(h['launch_score']):.0f}"
-                f"  wind {_v(h['upper_wind_score']):.0f}"
+                f"  UW {_v(h['upper_wind_score']):.0f}"
                 f"  thermal {_v(h['thermal_score']):.0f}"
                 f"  risk {_v(h['risk_score']):.0f}"
             )
@@ -551,11 +551,54 @@ SITE = SiteConfig(
 st.markdown("""
 <style>
 body, .stApp { background-color: #1C1C2E; color: #E0E0E0; }
-.stTabs [data-baseweb="tab-list"]  { gap: 8px; }
-.stTabs [data-baseweb="tab"]       { background-color: #252540; border-radius: 6px;
-                                      padding: 6px 18px; color: #E0E0E0; }
-.stTabs [aria-selected="true"]     { background-color: #383860 !important; }
 div[data-testid="stExpander"] > div { background-color: #252540; }
+
+/* ── Day-selector card buttons ─────────────────────────────────────────────
+   Target only buttons inside the main block (not sidebar).
+   We use [data-testid] selectors that Streamlit exposes on its button elements.
+*/
+div[data-testid="stMainBlockContainer"]
+    button[data-testid="baseButton-secondary"] {
+    background:    #252540 !important;
+    border:        2px solid rgba(255,255,255,0.10) !important;
+    border-radius: 16px !important;
+    padding:       20px 14px !important;
+    width:         100% !important;
+    min-height:    140px !important;
+    white-space:   pre-line !important;    /* allow \n line breaks */
+    text-align:    center !important;
+    line-height:   2.0 !important;
+    font-size:     12px !important;
+    font-weight:   400 !important;
+    color:         #9E9E9E !important;
+    letter-spacing: 0.3px !important;
+    transition:    border-color 0.15s ease, background 0.15s ease !important;
+    cursor:        pointer !important;
+}
+div[data-testid="stMainBlockContainer"]
+    button[data-testid="baseButton-secondary"]:hover {
+    background:   #2c2c4a !important;
+    border-color: rgba(255,255,255,0.25) !important;
+    color:        #E0E0E0 !important;
+}
+/* Selected card → primary type */
+div[data-testid="stMainBlockContainer"]
+    button[data-testid="baseButton-primary"] {
+    background:    #2a2a50 !important;
+    border:        2px solid rgba(255,255,255,0.45) !important;
+    border-radius: 16px !important;
+    padding:       20px 14px !important;
+    width:         100% !important;
+    min-height:    140px !important;
+    white-space:   pre-line !important;
+    text-align:    center !important;
+    line-height:   2.0 !important;
+    font-size:     12px !important;
+    font-weight:   400 !important;
+    color:         #FFFFFF !important;
+    letter-spacing: 0.3px !important;
+    cursor:        default !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -590,53 +633,81 @@ days      = pipe["available_days"]
 summaries = pipe["summaries"]
 
 # ──────────────────────────────────────────────────────────────────────────────
-# PER-DAY TABS  (verdict + score inside the label)
+# DAY SELECTOR  — clickable cards, one per forecast day
 # ──────────────────────────────────────────────────────────────────────────────
-def _tab_label(d: str, sm: dict) -> str:
-    emoji = VERDICT_EMOJI.get(sm["verdict"], "❓")
-    win   = sm.get("best_window")
-    win_s = f"  {win[0]}–{win[1]}" if win else ""
-    return f"{emoji} {d}  ·  {sm['verdict'].upper()}  ·  fly {sm['mean_fly_score']:.0f}  ·  {sm['usable_hours']}h{win_s}"
+if "selected_day" not in st.session_state or st.session_state.selected_day not in days:
+    st.session_state.selected_day = days[0]
 
-tabs = st.tabs([_tab_label(d, summaries[d]) for d in days])
-for tab, d in zip(tabs, days):
-    with tab:
-        sm = summaries[d]
-        vc = VERDICT_COLORS.get(sm["verdict"], TEXT)
-        reasons = sm.get("reasons", [])
-        # compact one-liner under the tab strip
-        tag_str     = f"  [{sm['tag']}]" if sm.get("tag") else ""
-        reason_str  = "  ·  " + "  ·  ".join(reasons) if reasons else ""
-        st.markdown(
-            f"<span style='color:{vc};font-weight:bold;font-size:13px;'>"
-            f"{sm['verdict'].upper()}{tag_str}</span>"
-            f"<span style='color:#9E9E9E;font-size:12px;'>{reason_str}</span>",
-            unsafe_allow_html=True,
-        )
-        fig = make_day_chart(d, evaluated, rows, SITE)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, config={
-                "displayModeBar": True,
-                "modeBarButtonsToRemove": ["select2d", "lasso2d", "autoScale2d"],
-                "displaylogo": False,
-                "scrollZoom": False,
-            })
+cols = st.columns(len(days), gap="small")
+for col, d in zip(cols, days):
+    sm  = summaries[d]
+    vc  = VERDICT_COLORS.get(sm["verdict"], TEXT)
+    win = sm.get("best_window")
+    is_sel = d == st.session_state.selected_day
+
+    # Multi-line label rendered with white-space:pre-line via CSS
+    label = "\n".join([
+        d,
+        f"{VERDICT_EMOJI.get(sm['verdict'], '')}  {sm['verdict'].upper()}",
+        f"[{sm['tag']}]" if sm.get("tag") else "",
+        f"fly {sm['mean_fly_score']:.0f}  ·  {sm['usable_hours']}h usable",
+        f"{win[0]} – {win[1]}" if win else "no window",
+    ])
+
+    with col:
+        if is_sel:
+            # primary type → selected style (no rerun needed, already selected)
+            st.button(label, key=f"card_{d}", type="primary",
+                      use_container_width=True, disabled=True)
         else:
-            st.warning(f"No data for {d}.")
+            if st.button(label, key=f"card_{d}", type="secondary",
+                         use_container_width=True):
+                st.session_state.selected_day = d
+                st.rerun()
 
-        with st.expander("🔍 Hour-by-hour detail"):
-            day_hrs = [h for h in evaluated
-                       if h["time"].startswith(d) and 6 <= int(h["time"][11:13]) <= 20]
-            df = pd.DataFrame([{
-                "time":       h["time"][11:16],
-                "status":     ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
-                "fly":        _v(h["fly_score"]),
-                "launch":     _v(h["launch_score"]),
-                "upper wind": _v(h["upper_wind_score"]),
-                "thermal":    _v(h["thermal_score"]),
-                "risk":       _v(h["risk_score"]),
-                "foehn":      _v(h["foehn_score"]),
-                "cloudbase":  int(h["cloudbase_estimate_m"]) if h["cloudbase_estimate_m"] else "",
-                "regime":     h["thermal_regime"] or "",
-            } for h in day_hrs])
-            st.dataframe(df, use_container_width=True, hide_index=True)
+st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DAY DETAIL
+# ──────────────────────────────────────────────────────────────────────────────
+d  = st.session_state.selected_day
+sm = summaries[d]
+vc = VERDICT_COLORS.get(sm["verdict"], TEXT)
+reasons = sm.get("reasons", [])
+tag_str    = f"  [{sm['tag']}]" if sm.get("tag") else ""
+reason_str = "  ·  " + "  ·  ".join(reasons) if reasons else ""
+st.markdown(
+    f"<span style='color:{vc};font-weight:700;font-size:13px;'>"
+    f"{sm['verdict'].upper()}{tag_str}</span>"
+    f"<span style='color:#9E9E9E;font-size:12px;'>{reason_str}</span>",
+    unsafe_allow_html=True,
+)
+
+fig = make_day_chart(d, evaluated, rows, SITE)
+if fig:
+    st.plotly_chart(fig, use_container_width=True, config={
+        "displayModeBar": True,
+        "modeBarButtonsToRemove": ["select2d", "lasso2d", "autoScale2d"],
+        "displaylogo": False,
+        "scrollZoom": False,
+    })
+else:
+    st.warning(f"No data for {d}.")
+
+with st.expander("🔍 Hour-by-hour detail"):
+    day_hrs = [h for h in evaluated
+               if h["time"].startswith(d) and 6 <= int(h["time"][11:13]) <= 20]
+    df = pd.DataFrame([{
+        "time":       h["time"][11:16],
+        "status":     ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
+        "fly":        _v(h["fly_score"]),
+        "potential":  _v(h["potential_score"]),
+        "launch":     _v(h["launch_score"]),
+        "upper wind": _v(h["upper_wind_score"]),
+        "thermal":    _v(h["thermal_score"]),
+        "risk":       _v(h["risk_score"]),
+        "foehn":      _v(h["foehn_score"]),
+        "cloudbase":  int(h["cloudbase_estimate_m"]) if h["cloudbase_estimate_m"] else "",
+        "regime":     h["thermal_regime"] or "",
+    } for h in day_hrs])
+    st.dataframe(df, use_container_width=True, hide_index=True)
