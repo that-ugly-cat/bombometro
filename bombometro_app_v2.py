@@ -432,21 +432,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=3, col=1, secondary_y=True,
     )
 
-    # cloudbase — free axis y11 (overlaying primary y of row 3)
-    fig.add_trace(
-        go.Scatter(
-            x=lbl, y=cloudbase, name="cloudbase (m)",
-            mode="lines+markers",
-            line=dict(color="#FFCC02", dash="dashdot", width=2),
-            marker=dict(size=4, color="#FFCC02"),
-            connectgaps=False,
-            legend="legend3",
-            hovertemplate="cloudbase: <b>%{y:.0f} m</b><extra></extra>",
-        ),
-        row=3, col=1,
-    )
-    fig.data[-1].yaxis = "y11"
-
     # ─────────────────────────────────────────────────────────────────────────
     # ROW 4 — wind by level
     # ─────────────────────────────────────────────────────────────────────────
@@ -456,7 +441,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         go.Scatter(
             x=lbl + lbl[::-1],
             y=gusts_10m + wind_10m[::-1],
-            fill="toself", fillcolor="rgba(128,222,234,0.12)",
+            fill="toself", fillcolor="rgba(41,182,246,0.10)",
             line=dict(color="rgba(0,0,0,0)"),
             hoverinfo="skip", showlegend=False, name="_gustfill",
         ),
@@ -464,11 +449,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     )
 
     for name, data, dir_labels, color, dash, width in [
-        ("700 hPa",   wind_700,  lbl_700,  "#CE93D8", "solid", 2.0),
-        ("850 hPa",   wind_850,  lbl_850,  "#7986CB", "solid", 2.0),
-        ("925 hPa",   wind_925,  lbl_925,  "#4FC3F7", "solid", 2.0),
-        ("gusts 10m", gusts_10m, lbl_gust, "#80DEEA", "dot",   1.3),
-        ("10m wind",  wind_10m,  lbl_10m,  "#80DEEA", "solid", 1.8),
+        ("700 hPa",   wind_700,  lbl_700,  "#EF5350", "solid", 2.0),   # red
+        ("850 hPa",   wind_850,  lbl_850,  "#FF9800", "solid", 2.0),   # orange
+        ("925 hPa",   wind_925,  lbl_925,  "#66BB6A", "solid", 2.0),   # green
+        ("gusts 10m", gusts_10m, lbl_gust, "#29B6F6", "dot",   1.3),   # sky blue dotted
+        ("10m wind",  wind_10m,  lbl_10m,  "#29B6F6", "solid", 1.8),   # sky blue
     ]:
         fig.add_trace(
             go.Scatter(
@@ -501,9 +486,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # ─────────────────────────────────────────────────────────────────────────
 
     for name, data, fill_color in [
-        ("high cloud", cc_high, "rgba(69,90,100,0.80)"),
-        ("mid cloud",  cc_mid,  "rgba(84,110,122,0.80)"),
-        ("low cloud",  cc_low,  "rgba(96,125,139,0.80)"),
+        ("high cloud", cc_high, "rgba(180,200,230,0.50)"),   # pale ice-blue (cirrus)
+        ("mid cloud",  cc_mid,  "rgba(80,140,180,0.70)"),    # mid blue (alto)
+        ("low cloud",  cc_low,  "rgba(50,60,100,0.90)"),     # dark indigo (stratus)
     ]:
         fig.add_trace(
             go.Scatter(
@@ -558,19 +543,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         legend3=dict(**_LEG, yanchor="top",    y=0.622),   # above row 3
         legend4=dict(**_LEG, yanchor="top",    y=0.434),   # above row 4
         legend5=dict(**_LEG, yanchor="top",    y=0.207),   # above row 5
-        # cloudbase — free axis on row 3 (overlaying primary y5)
-        yaxis11=dict(
-            overlaying="y5",
-            side="right",
-            anchor="free",
-            position=0.97,
-            range=[0, 3500],
-            showgrid=False,
-            zeroline=False,
-            title_text="cloudbase m",
-            title_font=dict(color="#FFCC02", size=9),
-            tickfont=dict(color="#FFCC02", size=9),
-        ),
     )
 
     # x-axes: only show tick labels on the bottom row
