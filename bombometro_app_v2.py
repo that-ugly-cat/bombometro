@@ -168,7 +168,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
         return None
 
     smry = day_summary(evaluated_all, day)
-    lbl  = [h["time"][11:13] for h in hrs]
+    # Integer hour values → numeric x-axis so add_vline with float x works correctly.
+    # tick display is handled via tickvals/ticktext in update_xaxes below.
+    lbl  = [int(h["time"][11:13]) for h in hrs]
 
     # ── score series ──
     fly_sc      = [_v(h["fly_score"])        for h in hrs]
@@ -654,32 +656,22 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
 
     # ─────────────────────────────────────────────────────────────────────────
     # SUNRISE / SUNSET vertical lines  (span full chart height via yref="paper")
+    # lbl is now integer hours → numeric axis → float x works correctly here.
+    # Times are shown as text in the UI above the chart; no annotations here.
     # ─────────────────────────────────────────────────────────────────────────
     if sun_times and lbl:
-        start_hour = int(lbl[0])
-        for key, color, ann_pos in [
-            ("sunrise",    "#FFD54F", "top left"),
-            ("solar_noon", "rgba(255,255,255,0.18)", None),
-            ("sunset",     "#FF8A65", "top right"),
+        for key, color in [
+            ("sunrise",    "#FFD54F"),
+            ("solar_noon", "rgba(255,255,255,0.18)"),
+            ("sunset",     "#FF8A65"),
         ]:
             dt = sun_times.get(key)
             if dt is None:
                 continue
-            x_pos = (dt.hour - start_hour) + dt.minute / 60
-            if -0.5 <= x_pos <= len(lbl) - 0.5:
-                vline_kw = dict(
-                    x=x_pos,
-                    line=dict(color=color, dash="dot", width=1.2),
-                )
-                if ann_pos:
-                    vline_kw.update(
-                        annotation_text=dt.strftime("%H:%M"),
-                        annotation_position=ann_pos,
-                        annotation_font=dict(size=9, color=color),
-                        annotation_bgcolor="rgba(0,0,0,0)",
-                        annotation_borderwidth=0,
-                    )
-                fig.add_vline(**vline_kw)
+            x_pos = dt.hour + dt.minute / 60   # e.g. 6.583 for 06:35
+            if lbl[0] - 0.5 <= x_pos <= lbl[-1] + 0.5:
+                fig.add_vline(x=x_pos,
+                              line=dict(color=color, dash="dot", width=1.2))
 
     # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL LAYOUT
@@ -715,7 +707,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
         legend7=dict(**_LEG, yanchor="bottom", y=0.079),  # gap above row 7 (wind)
     )
 
-    # x-axes: tick labels on every row so the hour is always readable
+    # x-axes: numeric integer hours; tickvals/ticktext give "06","07"… display.
+    # xhoverformat keeps "06" format in the unified hover header too.
+    _tick_text = [f"{h:02d}" for h in lbl]
     for row_i in range(1, 8):
         fig.update_xaxes(
             row=row_i, col=1,
@@ -723,6 +717,9 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             tickfont=dict(size=10, color=TEXT),
             showticklabels=True,
             tickangle=0,
+            tickvals=lbl,
+            ticktext=_tick_text,
+            xhoverformat="02d",
         )
 
     # primary y-axes
