@@ -222,11 +222,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             vr = h.get("veto_reasons") or [h["veto_type"] or "?"]
             top = (f"<b>⛔ {(h['veto_type'] or 'veto').upper()}</b>"
                    f"<br>{' · '.join(str(x) for x in vr)}")
-            # context component scores even for vetoed hours
-            top += (f"<br><span style='color:#9E9E9E'>context → "
-                    f"launch {_v(h['launch_score']):.0f}  "
-                    f"UW {_v(h['upper_wind_score']):.0f}  "
-                    f"thermal {_v(h['thermal_score']):.0f}</span>")
+            # foehn reasons always relevant when present
+            top += _rb("foehn", h.get("foehn_reasons"), "#FFA726")
         else:
             top = (
                 f"<b>fly {_v(h['fly_score']):.0f}</b>"
@@ -238,25 +235,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             if cloudbase[i] is not None:
                 top += (f"<br>cloudbase ≈ {int(cloudbase[i])} m"
                         f"  [{h.get('thermal_regime','')}]")
-            # Only show reasons for limiting components
-            if _v(h.get("launch_score")) < 75:
-                top += _rb("launch",     h.get("launch_reasons"),     "#4FC3F7")
-            if _v(h.get("upper_wind_score")) < 75:
-                top += _rb("upper wind", h.get("upper_wind_reasons"), "#81C784")
-            if _v(h.get("risk_score")) > 15:
-                top += _rb("risk",       h.get("risk_reasons"),       "#EF9A9A")
-            if _v(h.get("foehn_score")) > 30:
-                top += _rb("foehn",      h.get("foehn_reasons"),      "#FFA726")
-            pen_parts = []
-            rpen = _v(h.get("risk_penalty"))
-            fpen = _v(h.get("foehn_penalty"))
-            if rpen > 0:
-                pen_parts.append(f"risk −{rpen:.1f}")
-            if fpen > 0:
-                pen_parts.append(f"foehn −{fpen:.1f}")
-            if pen_parts:
-                top += (f"<br><span style='color:#FF8A65'>"
-                        f"penalties: {' · '.join(pen_parts)}</span>")
         met = (
             f"<br><span style='color:#9E9E9E'>"
             f"10m {lbl_10m[i]} km/h  "
@@ -340,27 +318,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     _RGB = {"#4FC3F7": (79,195,247), "#81C784": (129,199,132),
             "#FFD54F": (255,213,79),  "#EF9A9A": (239,154,154)}
 
-    # Build per-hour customdata strings for each component bar
-    _cd_launch, _cd_upper, _cd_thermal, _cd_risk, _cd_foehn = [], [], [], [], []
-    for h in hrs:
-        _cd_launch.append(_fmt_reasons(h.get("launch_reasons")))
-        _cd_upper.append(_fmt_reasons(h.get("upper_wind_reasons")))
-        tr = h.get("thermal_regime") or ""
-        cb = h.get("cloudbase_band") or ""
-        thermal_extra = (f"  [{tr}]" if tr else "") + (f"  {cb}" if cb else "")
-        _cd_thermal.append(_fmt_reasons(h.get("thermal_reasons")) + thermal_extra)
-        rpen = _v(h.get("risk_penalty"))
-        risk_extra = f"  | penalty −{rpen:.1f}" if rpen > 0 else ""
-        _cd_risk.append(_fmt_reasons(h.get("risk_reasons")) + risk_extra)
-        fpen = _v(h.get("foehn_penalty"))
-        foehn_extra = f"  | penalty −{fpen:.1f}" if fpen > 0 else ""
-        _cd_foehn.append(_fmt_reasons(h.get("foehn_reasons")) + foehn_extra)
-
-    for name, data, hex_c, cdata in [
-        ("launch",     launch_sc,  "#4FC3F7", _cd_launch),
-        ("upper wind", upper_sc,   "#81C784", _cd_upper),
-        ("thermal",    thermal_sc, "#FFD54F", _cd_thermal),
-        ("risk",       risk_sc,    "#EF9A9A", _cd_risk),
+    for name, data, hex_c in [
+        ("launch",     launch_sc,  "#4FC3F7"),
+        ("upper wind", upper_sc,   "#81C784"),
+        ("thermal",    thermal_sc, "#FFD54F"),
+        ("risk",       risk_sc,    "#EF9A9A"),
     ]:
         rc, g, b = _RGB[hex_c]
         bar_colors = [
@@ -372,12 +334,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             go.Bar(
                 x=lbl, y=data, name=name,
                 marker=dict(color=bar_colors, line=dict(width=0)),
-                customdata=cdata,
                 legend="legend2",
-                hovertemplate=(
-                    f"{name}: <b>%{{y:.0f}}</b>"
-                    "<br>%{customdata}<extra></extra>"
-                ),
+                hovertemplate=f"{name}: <b>%{{y:.0f}}</b><extra></extra>",
             ),
             row=2, col=1,
         )
@@ -388,12 +346,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             mode="lines+markers",
             line=dict(color="#FFA726", dash="dash", width=1.8),
             marker=dict(size=5, symbol="diamond", color="#FFA726"),
-            customdata=_cd_foehn,
             legend="legend2",
-            hovertemplate=(
-                "foehn: <b>%{y:.0f}</b>"
-                "<br>%{customdata}<extra></extra>"
-            ),
+            hovertemplate="foehn: <b>%{y:.0f}</b><extra></extra>",
         ),
         row=2, col=1, secondary_y=True,
     )
