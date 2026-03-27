@@ -431,8 +431,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             line=dict(color="#FFD54F", width=1.5),
             mode="lines",
             legend="legend3",
-            customdata=[_sw_label(w) for w in shortwave_vals],
-            hovertemplate="shortwave: <b>%{y:.0f}</b> W/m²  [%{customdata}]<extra></extra>",
+            customdata=[[_sw_label(w), h.get("thermal_regime", "off")] for w, h in zip(shortwave_vals, hrs)],
+            hovertemplate="shortwave: <b>%{y:.0f}</b> W/m²  [%{customdata[0]}]  ·  regime: <b>%{customdata[1]}</b><extra></extra>",
         ),
         row=3, col=1,
     )
@@ -983,9 +983,10 @@ div[data-testid="stExpander"] > div { background-color: #252540; }
 
 /* ── Maximise plot area — reduce Streamlit container padding ───────────────── */
 .main .block-container {
-    padding-left:  0.75rem !important;
-    padding-right: 0.75rem !important;
-    max-width:     100% !important;
+    padding-left:   0.75rem !important;
+    padding-right:  0.75rem !important;
+    padding-bottom: 1rem    !important;
+    max-width:      100%    !important;
 }
 @media (max-width: 768px) {
     .main .block-container {
@@ -1231,7 +1232,7 @@ else:
 
 fig = make_day_chart(d, evaluated, rows, SITE, sun_times=_sun)
 if fig:
-    st.plotly_chart(fig, width="stretch", config={
+    st.plotly_chart(fig, width="stretch", height=2000, config={
         "displayModeBar": False,
         "scrollZoom": False,
     })
