@@ -522,8 +522,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
     # Legends 2-5: yanchor="top", y slightly above each panel top (in spacing).
     # Legend 1: yanchor="bottom", y=1.0 → floats in top margin (t=40).
-    _LEG = dict(orientation="h", xanchor="right", x=0.89,
-                bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
+    # Legends sit just INSIDE each panel's top-right corner (below subplot titles).
+    # Panel tops (paper): row1=1.0, row2=0.834, row3=0.601, row4=0.410, row5=0.185
+    # Subplot titles are placed in the spacing ABOVE each panel → no conflict.
+    _LEG = dict(orientation="h", xanchor="right", x=0.98,
+                bgcolor="rgba(28,28,46,0.78)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
         height=1250,
@@ -538,11 +541,11 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="bottom", y=1.0),  # row 1: floats in top margin
-        legend2=dict(**_LEG, yanchor="top",    y=0.858),   # above row 2 (spacing)
-        legend3=dict(**_LEG, yanchor="top",    y=0.622),   # above row 3
-        legend4=dict(**_LEG, yanchor="top",    y=0.434),   # above row 4
-        legend5=dict(**_LEG, yanchor="top",    y=0.207),   # above row 5
+        legend =dict(**_LEG, yanchor="top", y=0.994),  # inside row 1
+        legend2=dict(**_LEG, yanchor="top", y=0.828),  # inside row 2
+        legend3=dict(**_LEG, yanchor="top", y=0.595),  # inside row 3
+        legend4=dict(**_LEG, yanchor="top", y=0.404),  # inside row 4
+        legend5=dict(**_LEG, yanchor="top", y=0.179),  # inside row 5
     )
 
     # x-axes: only show tick labels on the bottom row
@@ -610,50 +613,110 @@ with st.sidebar:
     st.caption("Paragliding day classifier · Open-Meteo")
     st.divider()
 
-    preset = st.selectbox("Site preset", list(SITE_PRESETS.keys()))
+    preset = st.selectbox("📍 Sito", list(SITE_PRESETS.keys()))
     p      = SITE_PRESETS[preset]
-
-    with st.expander("📍 Location", expanded=(preset == "Custom")):
-        site_name = st.text_input("Site name", value=preset)
-        lat   = st.number_input("Latitude",  value=p["latitude"],  format="%.4f")
-        lon   = st.number_input("Longitude", value=p["longitude"], format="%.4f")
-        tz    = st.text_input("Timezone",    value=p["timezone"])
-        model = st.selectbox("Model",
-                             ["icon_eu", "ecmwf_ifs025", "gfs_seamless", "meteofrance_seamless"])
-
-    with st.expander("🧭 Launch window"):
-        dir_center = st.number_input("Dir center (°)",    value=p["launch_dir_center_deg"],    step=5.0)
-        dir_tol    = st.number_input("Dir tolerance (°)", value=p["launch_dir_tolerance_deg"], step=5.0)
-        wind_min   = st.number_input("Wind min (km/h)",   value=p["launch_wind_min_kmh"],      step=1.0)
-        wind_max   = st.number_input("Wind max (km/h)",   value=p["launch_wind_max_kmh"],      step=1.0)
-        gust_max   = st.number_input("Gusts max (km/h)",  value=p["gust_max_kmh"],             step=1.0)
-
-    with st.expander("🌬️ Upper winds"):
-        w925_max = st.number_input("925 hPa max (km/h)", value=p["wind_925_max_kmh"], step=1.0)
-        w850_max = st.number_input("850 hPa max (km/h)", value=p["wind_850_max_kmh"], step=1.0)
-        w800_max = st.number_input("800 hPa max (km/h)", value=p["wind_800_max_kmh"], step=1.0)
-        w700_max = st.number_input("700 hPa max (km/h)", value=p["wind_700_max_kmh"], step=1.0)
-
-    with st.expander("🌧️ Precip & clouds"):
-        precip_max   = st.number_input("Precip max (mm/h)", value=p["precip_max_mm"],    step=0.05, format="%.2f")
-        snow_max     = st.number_input("Snow max (cm)",     value=p["snow_max_cm"],       step=0.05, format="%.2f")
-        cloud_lo_max = st.number_input("Low cloud max (%)", value=p["cloud_low_max_pct"], step=1.0)
-
-    with st.expander("🌡️ Foehn"):
-        foehn_dp = st.number_input("Foehn ΔP max (hPa)", value=p["foehn_delta_p_max_hpa"], step=0.5)
-
-    forecast_days = st.slider("Forecast days", 1, 7, 2)
+    model  = st.selectbox("🔮 Modello",
+                          ["icon_eu", "ecmwf_ifs025", "gfs_seamless", "meteofrance_seamless"])
+    forecast_days = st.slider("📅 Giorni", 1, 7, 2)
     fetch_btn     = st.button("🔄 Fetch forecast", type="primary", use_container_width=True)
 
+    st.divider()
+    st.caption("ℹ️ Legenda pannelli")
+
+    with st.popover("🚦 Status & fly score", use_container_width=True):
+        st.markdown("""
+**Barre colorate** — stato ora per ora:
+- 🟢 verde → volabile (gradiente per punteggio)
+- 🔴 rosso → veto **vento**
+- 🔵 blu → veto **pioggia**
+- 🟠 arancione → veto **foehn**
+- 🩷 rosa → veto **raffiche**
+- ⬜ grigio → veto **visibilità**
+
+**Fly score 0–100** (linea bianca): punteggio effettivo nelle ore volabili.
+**Potential score** (linea tratteggiata grigia): punteggio che avrebbe senza veti attivi.
+
+*Hover*: tipo di veto + motivazioni + meteo (vento 10m, raffiche, 925 hPa, pioggia).
+""")
+
+    with st.popover("📊 Component scores", use_container_width=True):
+        st.markdown("""
+**Barre per componente** (trasparenti = ora vetata):
+
+| Colore | Componente | Valuta |
+|--------|-----------|--------|
+| 🔵 azzurro | Launch | direzione e velocità al decollo |
+| 🟢 verde | Upper wind | vento 925/850/800/700 hPa |
+| 🟡 giallo | Thermal | attività termica |
+| 🔴 rosso | Risk | raffiche, pioggia, neve |
+
+**Foehn** (linea arancione, asse destro 0–100): indice foehn — più alto = più foehn.
+Punteggi bassi (< 60) in un componente possono abbassare il fly score finale.
+""")
+
+    with st.popover("🌡️ Thermal activity", use_container_width=True):
+        st.markdown("""
+**Shortwave** (area gialla, asse sinistro W/m²):
+Radiazione solare che alimenta le termiche.
+< 150 debole · 150–400 moderata · 400–600 buona · > 600 forte
+
+**T−Td spread** (linea ciano tratteggiata, asse destro °C):
+Differenza temperatura/rugiada → stima cloudbase:
+`cloudbase ≈ spread × 125 m`
+
+**T2m−T700** (area arancione, asse destro °C):
+Gradiente termico verticale:
+< 15° stabile · 15–18° debole · 18–22° buono · > 22° forte
+
+**Sfondo colorato**: regime termico stimato
+🔵 blue thermal · 🟢 cumuli · ⬛ tappo · trasparente off
+""")
+
+    with st.popover("💨 Wind by level", use_container_width=True):
+        st.markdown("""
+Velocità del vento per livello di pressione:
+
+| Colore | Livello |
+|--------|---------|
+| 🔴 rosso | 700 hPa (~3000 m) |
+| 🟠 arancione | 850 hPa (~1500 m) |
+| 🟢 verde | 925 hPa (~750 m) |
+| 🔵 azzurro pieno | Vento 10m |
+| 🔵 azzurro tratt. | Raffiche 10m |
+
+Linee orizzontali tratteggiate = soglie veto configurate per il sito.
+""")
+
+    with st.popover("☁️ Cloud cover & precip", use_container_width=True):
+        st.markdown("""
+**Area impilata** (cloud cover %):
+- ⬜ bianco/ghiaccio → cirri (high, > 6000 m)
+- 🔵 blu → altocumuli/altostrato (mid, 2000–6000 m)
+- 🟦 indaco scuro → strati/cumuli bassi (low, < 2000 m)
+
+Le aree si sommano: il totale può superare 100% se tutti e tre i livelli sono presenti.
+
+**Barre blu** (asse destro): precipitazioni in mm/h.
+""")
+
+
+
 SITE = SiteConfig(
-    name=site_name, latitude=lat, longitude=lon, timezone=tz, model=model,
-    launch_dir_center_deg=dir_center, launch_dir_tolerance_deg=dir_tol,
-    launch_wind_min_kmh=wind_min,     launch_wind_max_kmh=wind_max,
-    gust_max_kmh=gust_max,            wind_925_max_kmh=w925_max,
-    wind_850_max_kmh=w850_max,        wind_800_max_kmh=w800_max,
-    wind_700_max_kmh=w700_max,        foehn_delta_p_max_hpa=foehn_dp,
-    precip_max_mm=precip_max,         snow_max_cm=snow_max,
-    cloud_low_max_pct=cloud_lo_max,
+    name=preset,
+    latitude=p["latitude"],               longitude=p["longitude"],
+    timezone=p["timezone"],               model=model,
+    launch_dir_center_deg=p["launch_dir_center_deg"],
+    launch_dir_tolerance_deg=p["launch_dir_tolerance_deg"],
+    launch_wind_min_kmh=p["launch_wind_min_kmh"],
+    launch_wind_max_kmh=p["launch_wind_max_kmh"],
+    gust_max_kmh=p["gust_max_kmh"],
+    wind_925_max_kmh=p["wind_925_max_kmh"],
+    wind_850_max_kmh=p["wind_850_max_kmh"],
+    wind_800_max_kmh=p["wind_800_max_kmh"],
+    wind_700_max_kmh=p["wind_700_max_kmh"],
+    foehn_delta_p_max_hpa=p["foehn_delta_p_max_hpa"],
+    precip_max_mm=p["precip_max_mm"],     snow_max_cm=p["snow_max_cm"],
+    cloud_low_max_pct=p["cloud_low_max_pct"],
     cloud_cover_low_bad=p["cloud_cover_low_bad"],
     cloud_cover_mid_bad=p["cloud_cover_mid_bad"],
     shortwave_good=p["shortwave_good"],
@@ -668,6 +731,34 @@ st.markdown("""
 <style>
 body, .stApp { background-color: #1C1C2E; color: #E0E0E0; }
 div[data-testid="stExpander"] > div { background-color: #252540; }
+
+/* ── Fetch button in sidebar — green ───────────────────────────────────────── */
+div[data-testid="stSidebar"] button[data-testid="baseButton-primary"] {
+    background-color: #1B5E20 !important;
+    border-color:     #2E7D32 !important;
+    color:            #FFFFFF !important;
+}
+div[data-testid="stSidebar"] button[data-testid="baseButton-primary"]:hover {
+    background-color: #2E7D32 !important;
+    border-color:     #388E3C !important;
+}
+
+/* ── Info popover buttons in sidebar — subtle ──────────────────────────────── */
+div[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] {
+    background:    #252540 !important;
+    border:        1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+    color:         #90A4AE !important;
+    font-size:     11px !important;
+    text-align:    left !important;
+    padding:       6px 10px !important;
+    min-height:    0 !important;
+}
+div[data-testid="stSidebar"] button[data-testid="baseButton-secondary"]:hover {
+    background:    #2c2c4a !important;
+    border-color:  rgba(255,255,255,0.25) !important;
+    color:         #E0E0E0 !important;
+}
 
 /* ── Day-selector card buttons ─────────────────────────────────────────────
    Target only buttons inside the main block (not sidebar).
@@ -806,9 +897,7 @@ st.markdown(
 fig = make_day_chart(d, evaluated, rows, SITE)
 if fig:
     st.plotly_chart(fig, use_container_width=True, config={
-        "displayModeBar": True,
-        "modeBarButtonsToRemove": ["select2d", "lasso2d", "autoScale2d"],
-        "displaylogo": False,
+        "displayModeBar": False,
         "scrollZoom": False,
     })
 else:
