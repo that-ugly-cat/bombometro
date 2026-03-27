@@ -606,8 +606,8 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     fig.update_yaxes(row=2, col=1, range=[0, 105],   **_axis(nticks=4))
     fig.update_yaxes(row=3, col=1, range=[0, 900],   **_axis(nticks=4))
     fig.update_yaxes(row=4, col=1, range=[0, 100],   **_axis(nticks=4))
-    fig.update_yaxes(row=5, col=1, range=[-15, 15],  **_axis(nticks=5),
-                     zeroline=True, zerolinecolor=GRID_C, zerolinewidth=1.5)
+    fig.update_yaxes(row=5, col=1, range=[-15, 15],
+                     **_axis(nticks=5, zeroline=True, zerolinecolor=GRID_C, zerolinewidth=1.5))
     fig.update_yaxes(row=6, col=1,                   **_axis(nticks=5))
 
     # secondary y-axes
