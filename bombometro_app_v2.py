@@ -192,7 +192,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     fig = make_subplots(
         rows=5, cols=1,
         shared_xaxes=True,
-        row_heights=[0.15, 0.23, 0.18, 0.22, 0.22],
+        row_heights=[0.2, 0.2, 0.2, 0.2, 0.2],
         vertical_spacing=0.07,
         specs=[[{"secondary_y": True}]] * 5,
         subplot_titles=[
@@ -427,7 +427,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             mode="lines",
             legend="legend3",
             customdata=[_lapse_label(lr) for lr in lapse_rate_vals],
-            hovertemplate="lapse rate: <b>%{y:.1f}</b> °C  [%{customdata}]<extra></extra>",
+            hovertemplate="lapse (gnd–700hPa): <b>%{y:.1f}</b> °C  [%{customdata}]<extra></extra>",
         ),
         row=3, col=1, secondary_y=True,
     )
@@ -523,10 +523,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # Legends 2-5: yanchor="top", y slightly above each panel top (in spacing).
     # Legend 1: yanchor="bottom", y=1.0 → floats in top margin (t=40).
     # Legends live in the inter-panel GAP, just above each panel's top boundary.
-    # spacing=0.07 → 87px gap per row (at height=1380) — enough for title + legend.
-    # Panel tops (paper, spacing=0.07): row1=1.0, row2=0.822, row3=0.586, row4=0.387, row5=0.158
-    # Subplot title annotations are pushed to mid-gap (+0.045) in the loop below.
-    # Legends: yanchor="bottom", y = panel_top + 0.005 → bottom of legend at gap base.
+    # spacing=0.07, equal row heights → plot area=0.72, each row=0.144.
+    # Panel tops: row1=1.0, row2=0.786, row3=0.572, row4=0.358, row5=0.144
+    # Subplot title annotations: pushed to mid-gap (+0.035) in the annotation loop.
+    # Legends: yanchor="bottom", y = panel_top + 0.005 → sits at gap base below title.
     _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
@@ -544,10 +544,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             namelength=-1,
         ),
         legend =dict(**_LEG, yanchor="bottom", y=1.005),  # gap above row 1 (top margin)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.827),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.591),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.392),  # gap above row 4
-        legend5=dict(**_LEG, yanchor="bottom", y=0.163),  # gap above row 5
+        legend2=dict(**_LEG, yanchor="bottom", y=0.791),  # gap above row 2
+        legend3=dict(**_LEG, yanchor="bottom", y=0.577),  # gap above row 3
+        legend4=dict(**_LEG, yanchor="bottom", y=0.363),  # gap above row 4
+        legend5=dict(**_LEG, yanchor="bottom", y=0.149),  # gap above row 5
     )
 
     # x-axes: only show tick labels on the bottom row
@@ -595,7 +595,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         ann.xanchor    = "left"
         ann.xref       = "paper"
         ann.yanchor    = "bottom"
-        ann.y         += 0.045   # lift into gap; row-1 title lands in top margin
+        ann.y         += 0.035   # lift into gap; row-1 title lands in top margin
 
     return fig
 
@@ -608,7 +608,7 @@ with st.sidebar:
     st.caption("Paragliding day classifier · Open-Meteo")
     st.divider()
 
-    preset = st.selectbox("📍 Sito", list(SITE_PRESETS.keys()))
+    preset = st.selectbox("📍 Place", list(SITE_PRESETS.keys()))
     p      = SITE_PRESETS[preset]
     model  = st.selectbox("🔮 Model",
                           ["icon_eu", "meteofrance_seamless", "ecmwf_ifs",
@@ -661,7 +661,7 @@ Temperature-dewpoint difference → cloudbase estimate:
 `cloudbase ≈ spread × 125 m`
 
 **T2m−T700** (orange area, right axis °C):
-Vertical thermal gradient:
+Vertical lapse rate from ground to ~3000 m (700hPa):
 < 15° stable · 15–18° weak · 18–22° good · > 22° strong
 
 **Background colour**: estimated thermal regime
@@ -694,6 +694,32 @@ Layers are stacked: total can exceed 100% when all levels are present.
 
 **Blue bars** (right axis): precipitation in mm/h.
 """)
+
+    with st.popover("📐 Pressure levels (AMSL)", use_container_width=True):
+        st.markdown("""
+Approximate altitude above mean sea level for each pressure level (standard atmosphere):
+
+| Level | Altitude |
+|-------|----------|
+| 10m wind | ~10 m (surface/launch) |
+| 925 hPa | ~750 m |
+| 850 hPa | ~1500 m |
+| 800 hPa | ~1950 m |
+| 700 hPa | ~3000 m |
+
+Actual altitudes vary with temperature and surface pressure.
+Lapse rate uses **gnd – 700hPa** (full thermal column, ~3000 m).
+""")
+
+    st.divider()
+    st.markdown(
+        "<div style='text-align:center;font-size:11px;color:#555'>"
+        "Made with ❤️ by "
+        "<a href='https://www.giovannispitale.net' target='_blank' "
+        "style='color:#64B5F6;text-decoration:none'>Spit</a>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 
