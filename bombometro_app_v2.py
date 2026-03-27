@@ -73,6 +73,13 @@ VERDICT_COLORS = {
     "if you must": "#FFAB40",
     "bad idea":    "#FF5252",
 }
+VERDICT_EMOJI = {
+    "hammer day":  "🟢",
+    "not bad":     "🟡",
+    "meh":         "🟠",
+    "if you must": "🔴",
+    "bad idea":    "⛔",
+}
 BG       = "#1C1C2E"
 PANEL_BG = "#252540"
 TEXT     = "#E0E0E0"
@@ -206,20 +213,19 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=1, col=1,
     )
 
-    # potential score shadow — continuous line showing "what the score would be
-    # without the veto"; always populated, so it bridges vetoed blocks deliberately
+    # potential score shadow — continuous, bridges veto gaps deliberately
     fig.add_trace(
         go.Scatter(
             x=lbl, y=potential_sc, name="potential (no veto)",
             mode="lines",
             line=dict(color="#757575", dash="dot", width=1.5),
+            legend="legend",
             hovertemplate="potential: <b>%{y:.0f}</b><extra></extra>",
         ),
         row=1, col=1,
     )
 
-    # fly-score line — None for vetoed hours so Plotly draws gaps instead of
-    # bridging across veto blocks (which would imply a score that doesn't exist)
+    # fly-score line — gaps on vetoed hours
     fly_y_r1 = [h["fly_score"] if not h["veto"] else None for h in hrs]
     fig.add_trace(
         go.Scatter(
@@ -228,6 +234,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="white", width=2.5),
             marker=dict(size=7, color="white", line=dict(color=PANEL_BG, width=1.5)),
             connectgaps=False,
+            legend="legend",
             hovertemplate="fly score: <b>%{y:.0f}</b><extra></extra>",
         ),
         row=1, col=1,
@@ -276,6 +283,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 x=lbl, y=data, name=name,
                 marker=dict(color=color, line=dict(width=0)),
                 opacity=0.82,
+                legend="legend2",
                 hovertemplate=f"{name}: <b>%{{y:.0f}}</b><extra></extra>",
             ),
             row=2, col=1,
@@ -287,6 +295,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             mode="lines+markers",
             line=dict(color="#FFA726", dash="dash", width=1.8),
             marker=dict(size=5, symbol="diamond", color="#FFA726"),
+            legend="legend2",
             hovertemplate="foehn: <b>%{y:.0f}</b><extra></extra>",
         ),
         row=2, col=1, secondary_y=True,
@@ -321,6 +330,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 customdata=dir_labels,
                 line=dict(color=color, dash=dash, width=width),
                 mode="lines",
+                legend="legend3",
                 hovertemplate=(
                     f"{name}: <b>%{{customdata}}</b> km/h<extra></extra>"
                 ),
@@ -356,6 +366,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
                 fillcolor=fill_color,
                 line=dict(color=fill_color, width=0.3),
                 mode="lines",
+                legend="legend4",
                 hovertemplate=f"{name}: <b>%{{y:.0f}}</b>%<extra></extra>",
             ),
             row=4, col=1,
@@ -365,13 +376,14 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         go.Bar(
             x=lbl, y=precip, name="precip (mm/h)",
             marker=dict(color="#64B5F6", opacity=0.85, line=dict(width=0)),
+            legend="legend4",
             hovertemplate="precip: <b>%{y:.1f}</b> mm/h<extra></extra>",
         ),
         row=4, col=1, secondary_y=True,
     )
 
-    # cloudbase — added on primary y of row 4 so the xaxis is set correctly,
-    # then redirected to a dedicated third axis (yaxis9) to keep scales separate
+    # cloudbase — added on primary y of row 4 so xaxis is set correctly,
+    # then redirected to dedicated third axis (yaxis9) to keep scales separate
     fig.add_trace(
         go.Scatter(
             x=lbl, y=cloudbase, name="cloudbase (m)",
@@ -379,6 +391,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             line=dict(color="#FFCC02", dash="dashdot", width=2),
             marker=dict(size=4, color="#FFCC02"),
             connectgaps=False,
+            legend="legend4",
             hovertemplate="cloudbase: <b>%{y:.0f} m</b><extra></extra>",
         ),
         row=4, col=1,
@@ -388,20 +401,31 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # ─────────────────────────────────────────────────────────────────────────
     # GLOBAL LAYOUT
     # ─────────────────────────────────────────────────────────────────────────
-    verdict  = smry.get("verdict", "?")
-    tag      = smry.get("tag", "")
-    win      = smry.get("best_window")
-    mean_fly = smry.get("mean_fly_score", 0)
-    win_str  = f"  ·  best {win[0]}–{win[1]}" if win else "  ·  no window"
+    # Per-subplot legend y-positions (paper coords).
+    # row_heights=[0.20,0.30,0.25,0.25], spacing=0.06 → available height=0.82
+    # Row 4 top≈0.205, Row 3≈0.470, Row 2≈0.776, Row 1≈1.000
+    _LEG = dict(orientation="h", xanchor="right", x=0.99,
+                bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
         height=1050,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=55, r=110, t=90, b=20),
+        margin=dict(l=55, r=110, t=20, b=20),
+        barmode="group",
+        hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor=PANEL_BG, bordercolor=GRID_C,
+            font=dict(size=12, color=TEXT),
+            namelength=-1,
+        ),
+        legend =dict(**_LEG, yanchor="top", y=0.998),   # row 1: status & fly
+        legend2=dict(**_LEG, yanchor="top", y=0.773),   # row 2: scores
+        legend3=dict(**_LEG, yanchor="top", y=0.467),   # row 3: wind
+        legend4=dict(**_LEG, yanchor="top", y=0.202),   # row 4: cloud & weather
         yaxis9=dict(
-            overlaying="y7",        # row 4 primary y
+            overlaying="y7",
             side="right",
             anchor="free",
             position=1.0,
@@ -411,24 +435,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             title_text="cloudbase m",
             title_font=dict(color="#FFCC02", size=9),
             tickfont=dict(color="#FFCC02", size=9),
-        ),
-        title=dict(
-            text=f"<b>{site.name}</b>   {day}   <b>{verdict.upper()}</b>   [{tag}]   fly {mean_fly:.0f}{win_str}",
-            font=dict(size=13, color=TEXT),
-            x=0, xanchor="left",
-        ),
-        barmode="group",
-        hovermode="x unified",
-        hoverlabel=dict(
-            bgcolor=PANEL_BG, bordercolor=GRID_C,
-            font=dict(size=12, color=TEXT),
-            namelength=-1,
-        ),
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.02,
-            xanchor="right", x=1,
-            bgcolor="rgba(0,0,0,0)", font=dict(size=10),
-            traceorder="normal",
         ),
     )
 
@@ -584,31 +590,29 @@ days      = pipe["available_days"]
 summaries = pipe["summaries"]
 
 # ──────────────────────────────────────────────────────────────────────────────
-# SUMMARY CARDS
+# PER-DAY TABS  (verdict + score inside the label)
 # ──────────────────────────────────────────────────────────────────────────────
-cols = st.columns(len(days))
-for col, d in zip(cols, days):
-    sm = summaries[d]
-    vc = VERDICT_COLORS.get(sm["verdict"], TEXT)
-    col.markdown(
-        f"""<div style="background:#252540;border-radius:10px;padding:14px 10px;text-align:center;">
-        <div style="font-size:11px;color:#9E9E9E;">{d}</div>
-        <div style="font-size:22px;font-weight:bold;color:{vc};">{sm['verdict'].upper()}</div>
-        <div style="font-size:12px;color:#FFA726;">[{sm['tag']}]</div>
-        <div style="font-size:11px;color:#E0E0E0;margin-top:4px;">
-          fly {sm['mean_fly_score']:.0f} · {sm['usable_hours']} h usable
-        </div></div>""",
-        unsafe_allow_html=True,
-    )
+def _tab_label(d: str, sm: dict) -> str:
+    emoji = VERDICT_EMOJI.get(sm["verdict"], "❓")
+    win   = sm.get("best_window")
+    win_s = f"  {win[0]}–{win[1]}" if win else ""
+    return f"{emoji} {d}  ·  {sm['verdict'].upper()}  ·  fly {sm['mean_fly_score']:.0f}  ·  {sm['usable_hours']}h{win_s}"
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ──────────────────────────────────────────────────────────────────────────────
-# PER-DAY TABS
-# ──────────────────────────────────────────────────────────────────────────────
-tabs = st.tabs([f"📅 {d}" for d in days])
+tabs = st.tabs([_tab_label(d, summaries[d]) for d in days])
 for tab, d in zip(tabs, days):
     with tab:
+        sm = summaries[d]
+        vc = VERDICT_COLORS.get(sm["verdict"], TEXT)
+        reasons = sm.get("reasons", [])
+        # compact one-liner under the tab strip
+        tag_str     = f"  [{sm['tag']}]" if sm.get("tag") else ""
+        reason_str  = "  ·  " + "  ·  ".join(reasons) if reasons else ""
+        st.markdown(
+            f"<span style='color:{vc};font-weight:bold;font-size:13px;'>"
+            f"{sm['verdict'].upper()}{tag_str}</span>"
+            f"<span style='color:#9E9E9E;font-size:12px;'>{reason_str}</span>",
+            unsafe_allow_html=True,
+        )
         fig = make_day_chart(d, evaluated, rows, SITE)
         if fig:
             st.plotly_chart(fig, use_container_width=True, config={
