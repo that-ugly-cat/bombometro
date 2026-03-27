@@ -260,15 +260,6 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=1, col=1,
     )
 
-    # skull annotations on vetoed hours
-    for i, h in enumerate(hrs):
-        if h["veto"]:
-            fig.add_annotation(
-                x=lbl[i], y=50, text="💀",
-                showarrow=False, font=dict(size=13),
-                row=1, col=1,
-            )
-
     # potential score shadow — continuous, bridges veto gaps deliberately
     fig.add_trace(
         go.Scatter(
@@ -542,7 +533,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=35, r=50, t=40, b=10),
+        margin=dict(l=22, r=38, t=38, b=8),
         barmode="group",
         hovermode="x unified",
         hoverlabel=dict(
@@ -568,39 +559,28 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         )
     fig.update_xaxes(row=5, col=1, showticklabels=True)
 
-    # primary y-axes
-    fig.update_yaxes(row=1, col=1, range=[0, 105],
-                     **_axis(title_text="fly score"))
-    fig.update_yaxes(row=2, col=1, range=[0, 105],
-                     **_axis(title_text="score"))
-    fig.update_yaxes(row=3, col=1, range=[0, 900],
-                     **_axis(title_text="W/m²"))
-    fig.update_yaxes(row=4, col=1,
-                     **_axis(title_text="km/h"))
-    fig.update_yaxes(row=5, col=1, range=[0, 100],
-                     **_axis(title_text="cloud %"))
+    # primary y-axes (no titles — panel headings + legends carry the context)
+    fig.update_yaxes(row=1, col=1, range=[0, 105],  **_axis(nticks=4))
+    fig.update_yaxes(row=2, col=1, range=[0, 105],  **_axis(nticks=4))
+    fig.update_yaxes(row=3, col=1, range=[0, 900],  **_axis(nticks=4))
+    fig.update_yaxes(row=4, col=1,                  **_axis(nticks=5))
+    fig.update_yaxes(row=5, col=1, range=[0, 100],  **_axis(nticks=4))
 
-    # secondary y-axes
+    # secondary y-axes (no titles, coloured tick labels identify the axis)
     fig.update_yaxes(
         secondary_y=True, row=2, col=1,
-        range=[0, 100], showgrid=False,
-        title_text="foehn",
-        title_font=dict(color="#FFA726", size=10),
-        tickfont=dict(color="#FFA726", size=9),
+        range=[0, 100], showgrid=False, nticks=3,
+        tickfont=dict(color="#FFA726", size=8),
     )
     fig.update_yaxes(
         secondary_y=True, row=3, col=1,
-        range=[0, 30], showgrid=False,
-        title_text="°C",
-        title_font=dict(color="#EF5350", size=10),
-        tickfont=dict(color="#EF5350", size=9),
+        range=[0, 30], showgrid=False, nticks=4,
+        tickfont=dict(color="#EF5350", size=8),
     )
     fig.update_yaxes(
         secondary_y=True, row=5, col=1,
-        showgrid=False,
-        title_text="precip mm/h",
-        title_font=dict(color="#64B5F6", size=10),
-        tickfont=dict(color="#64B5F6", size=9),
+        showgrid=False, nticks=3,
+        tickfont=dict(color="#64B5F6", size=8),
     )
 
     # subplot title style (annotations) — left-aligned in spacing above each panel
@@ -742,6 +722,19 @@ st.markdown("""
 <style>
 body, .stApp { background-color: #1C1C2E; color: #E0E0E0; }
 div[data-testid="stExpander"] > div { background-color: #252540; }
+
+/* ── Maximise plot area — reduce Streamlit container padding ───────────────── */
+.main .block-container {
+    padding-left:  0.75rem !important;
+    padding-right: 0.75rem !important;
+    max-width:     100% !important;
+}
+@media (max-width: 768px) {
+    .main .block-container {
+        padding-left:  0.25rem !important;
+        padding-right: 0.25rem !important;
+    }
+}
 
 /* ── Fetch button in sidebar — green ───────────────────────────────────────── */
 div[data-testid="stSidebar"] button[data-testid="baseButton-primary"] {
