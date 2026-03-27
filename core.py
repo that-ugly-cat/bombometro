@@ -197,7 +197,10 @@ def fetch_foehn_pressure_series(
         series[ts] = {
             "pressure_foehn_south": p_south,
             "pressure_foehn_north": p_north,
-            "delta_p_foehn":        p_north - p_south,
+            # Guard against null values the API occasionally returns at forecast edges
+            "delta_p_foehn": (p_north - p_south)
+                             if (p_north is not None and p_south is not None)
+                             else None,
         }
     return series
 
