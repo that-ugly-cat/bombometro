@@ -188,7 +188,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
             top = (
                 f"<b>fly {_v(h['fly_score']):.0f}</b>"
                 f"  launch {_v(h['launch_score']):.0f}"
-                f"  UW {_v(h['upper_wind_score']):.0f}"
+                f"  wind {_v(h['upper_wind_score']):.0f}"
                 f"  thermal {_v(h['thermal_score']):.0f}"
                 f"  risk {_v(h['risk_score']):.0f}"
             )
