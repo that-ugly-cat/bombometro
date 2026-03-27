@@ -274,7 +274,7 @@ def hard_veto(row: Dict[str, Any], site: SiteConfig) -> Tuple[bool, Optional[str
         reasons.append("launch wind above limit");    veto_type = veto_type or "wind"
     if wind_925 > site.wind_925_max_kmh:
         reasons.append("925 wind above limit");       veto_type = veto_type or "wind"
-    if gusts > site.gust_max_kmh:
+    if gusts >= site.gust_max_kmh:
         reasons.append("gusts above limit");          veto_type = veto_type or "gusts"
     if precip > site.precip_max_mm:
         reasons.append("rain");                       veto_type = veto_type or "precipitation"
@@ -317,8 +317,8 @@ def launch_score(row: Dict[str, Any], site: SiteConfig) -> Tuple[float, List[str
     cloud_score = (clamp(100.0 * (1.0 - cloud_low / site.cloud_low_max_pct), 0, 100)
                    if site.cloud_low_max_pct > 0 else 100.0)
 
-    score = clamp(0.35 * direction_score + 0.35 * speed_score
-                  + 0.15 * gust_score + 0.15 * cloud_score, 0, 100)
+    score = clamp(0.30 * direction_score + 0.30 * speed_score
+                  + 0.25 * gust_score + 0.15 * cloud_score, 0, 100)
 
     reasons.append(
         "launch direction well aligned" if dir_diff <= site.launch_dir_tolerance_deg * 0.25 else
