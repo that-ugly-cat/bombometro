@@ -39,7 +39,10 @@ flying site and day. Write a SHORT advisory (150–200 words) that:
 1. Describes the overall character of the day (thermic, foehn-influenced, blocked, mixed…)
 2. Identifies the best flying window, or explains clearly why there isn't one
 3. Names the main risk or limiting factor
-4. Ends with a single punchy verdict sentence on its own line, prefixed with "→"
+4. Gives a flying-ambition assessment: is this a sledge ride day, soaring/ridge day, a local XC day, \
+   or does it have real XC potential? Base this on thermal quality, upper wind, \
+   cloud development, and overall fly score
+5. Ends with a single punchy verdict sentence on its own line, prefixed with "→"
 
 Be specific. Use the actual numbers when they add value. \
 Do not pad with generic safety advice. Write in English.\
