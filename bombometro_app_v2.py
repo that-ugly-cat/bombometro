@@ -144,10 +144,13 @@ def _alerts_str(h: dict) -> str:
             parts.extend(h.get("foehn_reasons") or [])
         rpen = _v(h.get("risk_penalty"))
         fpen = _v(h.get("foehn_penalty"))
+        fatt = _v(h.get("foehn_attenuation"))
         if rpen > 0:
             parts.append(f"risk penalty −{rpen:.1f}")
         if fpen > 0:
             parts.append(f"foehn penalty −{fpen:.1f}")
+        if fatt > 0:
+            parts.append(f"foehn attenuated by thermals −{fatt:.1f}")
     return " · ".join(str(p) for p in parts) if parts else ""
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1192,8 +1195,10 @@ def _all_reasons(h: dict) -> str:
             parts.extend(h.get(key) or [])
         rpen = _v(h.get("risk_penalty"))
         fpen = _v(h.get("foehn_penalty"))
+        fatt = _v(h.get("foehn_attenuation"))
         if rpen > 0: parts.append(f"risk penalty −{rpen:.1f}")
         if fpen > 0: parts.append(f"foehn penalty −{fpen:.1f}")
+        if fatt > 0: parts.append(f"foehn attenuated by thermals −{fatt:.1f}")
     return " · ".join(str(p) for p in parts) if parts else ""
 
 def _wlbl(h, key_spd, key_dir) -> str:
