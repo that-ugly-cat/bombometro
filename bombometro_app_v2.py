@@ -74,11 +74,11 @@ VERDICT_COLORS = {
     "bad idea":    "#FF5252",
 }
 VERDICT_EMOJI = {
-    "hammer day":  "🟢",
-    "not bad":     "🟡",
-    "meh":         "🟠",
-    "if you must": "🔴",
-    "bad idea":    "⛔",
+    "hammer day":  "🤩",
+    "not bad":     "😁",
+    "meh":         "😐",
+    "if you must": "😬",
+    "bad idea":    "💀",
 }
 BG       = "#1C1C2E"
 PANEL_BG = "#252540"
@@ -260,6 +260,15 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         row=1, col=1,
     )
 
+    # skull annotations on vetoed hours
+    for i, h in enumerate(hrs):
+        if h["veto"]:
+            fig.add_annotation(
+                x=lbl[i], y=50, text="💀",
+                showarrow=False, font=dict(size=13),
+                row=1, col=1,
+            )
+
     # potential score shadow — continuous, bridges veto gaps deliberately
     fig.add_trace(
         go.Scatter(
@@ -366,7 +375,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     _REGIME_BG = {
         "blue":    "rgba(79,195,247,0.13)",
         "cumulus": "rgba(129,199,132,0.13)",
-        "tappo":   "rgba(120,120,120,0.10)",
+        "cap":     "rgba(120,120,120,0.10)",
         "off":     "rgba(0,0,0,0)",
     }
     regime_bg_colors = [_REGIME_BG.get(h.get("thermal_regime", "off"), "rgba(0,0,0,0)") for h in hrs]
@@ -522,10 +531,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
     # Row 1 top≈0.998, Row 2≈0.832, Row 3≈0.599, Row 4≈0.391, Row 5≈0.166
     # Legends 2-5: yanchor="top", y slightly above each panel top (in spacing).
     # Legend 1: yanchor="bottom", y=1.0 → floats in top margin (t=40).
-    # Legends sit just INSIDE each panel's top-right corner (below subplot titles).
+    # Legends sit just INSIDE each panel's top-left corner, below the subplot title
+    # (which lives in the spacing above each panel) → order: title → legend → chart.
     # Panel tops (paper): row1=1.0, row2=0.834, row3=0.601, row4=0.410, row5=0.185
-    # Subplot titles are placed in the spacing ABOVE each panel → no conflict.
-    _LEG = dict(orientation="h", xanchor="right", x=0.98,
+    _LEG = dict(orientation="h", xanchor="left", x=0.0,
                 bgcolor="rgba(28,28,46,0.78)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
@@ -533,7 +542,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=55, r=65, t=40, b=20),
+        margin=dict(l=35, r=50, t=40, b=10),
         barmode="group",
         hovermode="x unified",
         hoverlabel=dict(
@@ -594,13 +603,14 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig):
         tickfont=dict(color="#64B5F6", size=9),
     )
 
-    # subplot title style (annotations)
+    # subplot title style (annotations) — left-aligned in spacing above each panel
     for ann in fig.layout.annotations:
-        ann.font.size  = 12
+        ann.font.size  = 11
         ann.font.color = TEXT
-        ann.x          = 0
+        ann.x          = 0.0
         ann.xanchor    = "left"
         ann.xref       = "paper"
+        ann.yanchor    = "bottom"   # title bottom sits at panel top → in spacing
 
     return fig
 
@@ -615,88 +625,89 @@ with st.sidebar:
 
     preset = st.selectbox("📍 Sito", list(SITE_PRESETS.keys()))
     p      = SITE_PRESETS[preset]
-    model  = st.selectbox("🔮 Modello",
-                          ["icon_eu", "ecmwf_ifs025", "gfs_seamless", "meteofrance_seamless"])
-    forecast_days = st.slider("📅 Giorni", 1, 7, 2)
+    model  = st.selectbox("🔮 Model",
+                          ["icon_eu", "meteofrance_seamless", "ecmwf_ifs",
+                           "meteoswiss_icon_ch1", "italia_meteo_arpae_icon_2i"])
+    forecast_days = 5
     fetch_btn     = st.button("🔄 Fetch forecast", type="primary", use_container_width=True)
 
     st.divider()
-    st.caption("ℹ️ Legenda pannelli")
+    st.caption("ℹ️ Panel guide")
 
     with st.popover("🚦 Status & fly score", use_container_width=True):
         st.markdown("""
-**Barre colorate** — stato ora per ora:
-- 🟢 verde → volabile (gradiente per punteggio)
-- 🔴 rosso → veto **vento**
-- 🔵 blu → veto **pioggia**
-- 🟠 arancione → veto **foehn**
-- 🩷 rosa → veto **raffiche**
-- ⬜ grigio → veto **visibilità**
+**Coloured bars** — hourly status:
+- Green → flyable (gradient by score)
+- Red → **wind** veto
+- Blue → **precipitation** veto
+- Orange → **foehn** veto
+- Pink → **gusts** veto
+- Grey → **visibility** veto
 
-**Fly score 0–100** (linea bianca): punteggio effettivo nelle ore volabili.
-**Potential score** (linea tratteggiata grigia): punteggio che avrebbe senza veti attivi.
+**Fly score 0–100** (white line): actual score for flyable hours.
+**Potential score** (grey dashed): score without any active veto.
 
-*Hover*: tipo di veto + motivazioni + meteo (vento 10m, raffiche, 925 hPa, pioggia).
+*Hover*: veto type + reasons + instant meteo (10m wind, gusts, 925 hPa, precip).
 """)
 
     with st.popover("📊 Component scores", use_container_width=True):
         st.markdown("""
-**Barre per componente** (trasparenti = ora vetata):
+**Per-component bars** (faded = vetoed hour):
 
-| Colore | Componente | Valuta |
-|--------|-----------|--------|
-| 🔵 azzurro | Launch | direzione e velocità al decollo |
-| 🟢 verde | Upper wind | vento 925/850/800/700 hPa |
-| 🟡 giallo | Thermal | attività termica |
-| 🔴 rosso | Risk | raffiche, pioggia, neve |
+| Colour | Component | Evaluates |
+|--------|-----------|-----------|
+| Blue | Launch | wind direction & speed at launch |
+| Green | Upper wind | 925/850/800/700 hPa winds |
+| Yellow | Thermal | thermal activity |
+| Red | Risk | gusts, rain, snow |
 
-**Foehn** (linea arancione, asse destro 0–100): indice foehn — più alto = più foehn.
-Punteggi bassi (< 60) in un componente possono abbassare il fly score finale.
+**Foehn** (orange line, right axis 0–100): foehn index — higher = more foehn influence.
+Low scores (< 60) in any component reduce the final fly score.
 """)
 
     with st.popover("🌡️ Thermal activity", use_container_width=True):
         st.markdown("""
-**Shortwave** (area gialla, asse sinistro W/m²):
-Radiazione solare che alimenta le termiche.
-< 150 debole · 150–400 moderata · 400–600 buona · > 600 forte
+**Shortwave** (yellow area, left axis W/m²):
+Solar radiation driving thermals.
+< 150 weak · 150–400 moderate · 400–600 good · > 600 strong
 
-**T−Td spread** (linea ciano tratteggiata, asse destro °C):
-Differenza temperatura/rugiada → stima cloudbase:
+**T−Td spread** (cyan dashed line, right axis °C):
+Temperature-dewpoint difference → cloudbase estimate:
 `cloudbase ≈ spread × 125 m`
 
-**T2m−T700** (area arancione, asse destro °C):
-Gradiente termico verticale:
-< 15° stabile · 15–18° debole · 18–22° buono · > 22° forte
+**T2m−T700** (orange area, right axis °C):
+Vertical thermal gradient:
+< 15° stable · 15–18° weak · 18–22° good · > 22° strong
 
-**Sfondo colorato**: regime termico stimato
-🔵 blue thermal · 🟢 cumuli · ⬛ tappo · trasparente off
+**Background colour**: estimated thermal regime
+🔵 blue thermal · 🟢 cumulus · ⬛ cap · transparent off
 """)
 
     with st.popover("💨 Wind by level", use_container_width=True):
         st.markdown("""
-Velocità del vento per livello di pressione:
+Wind speed per pressure level:
 
-| Colore | Livello |
-|--------|---------|
-| 🔴 rosso | 700 hPa (~3000 m) |
-| 🟠 arancione | 850 hPa (~1500 m) |
-| 🟢 verde | 925 hPa (~750 m) |
-| 🔵 azzurro pieno | Vento 10m |
-| 🔵 azzurro tratt. | Raffiche 10m |
+| Colour | Level |
+|--------|-------|
+| Red | 700 hPa (~3000 m) |
+| Orange | 850 hPa (~1500 m) |
+| Green | 925 hPa (~750 m) |
+| Blue solid | 10m wind |
+| Blue dashed | 10m gusts |
 
-Linee orizzontali tratteggiate = soglie veto configurate per il sito.
+Dashed horizontal lines = site-specific veto thresholds.
 """)
 
     with st.popover("☁️ Cloud cover & precip", use_container_width=True):
         st.markdown("""
-**Area impilata** (cloud cover %):
-- ⬜ bianco/ghiaccio → cirri (high, > 6000 m)
-- 🔵 blu → altocumuli/altostrato (mid, 2000–6000 m)
-- 🟦 indaco scuro → strati/cumuli bassi (low, < 2000 m)
+**Stacked area** (cloud cover %):
+- Ice-blue → high cloud / cirrus (> 6000 m)
+- Blue → mid cloud / altostratus (2000–6000 m)
+- Dark indigo → low cloud / stratus (< 2000 m)
 
-Le aree si sommano: il totale può superare 100% se tutti e tre i livelli sono presenti.
+Layers are stacked: total can exceed 100% when all levels are present.
 
-**Barre blu** (asse destro): precipitazioni in mm/h.
+**Blue bars** (right axis): precipitation in mm/h.
 """)
 
 
