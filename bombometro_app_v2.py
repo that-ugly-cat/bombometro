@@ -97,7 +97,7 @@ def _fly_color(score: float) -> str:
 def _axis(gridcolor=GRID_C, zeroline=False, **kw):
     return dict(gridcolor=gridcolor, zeroline=zeroline,
                 tickfont=dict(size=10, color=TEXT),
-                titlefont=dict(size=11, color=TEXT), **kw)
+                title_font=dict(size=11, color=TEXT), **kw)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # MAIN CHART  — one Plotly figure, 4 subplots, shared x-axis
