@@ -975,29 +975,26 @@ def _wind_cell_color(val: str) -> str:
     return     "background-color: rgba(244,67,54,0.40)"
 
 with st.expander("💨 Wind by level (dir + km/h)"):
-    # Build hours×levels, then transpose → levels as rows, hours as columns.
-    # The index (level names) becomes the sticky first column in st.dataframe.
+    # 700 hPa on top → 10m at bottom; transpose → levels as rows, hours as columns.
+    # Index (level names) is the sticky first column in st.dataframe.
     df_wind = pd.DataFrame(
         {
-            "10m":     [_wlbl(h, "wind_speed_10m",    "wind_direction_10m")    for h in _detail_hrs],
-            "gusts":   [f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}" for h in _detail_hrs],
-            "925 hPa": [_wlbl(h, "wind_speed_925hPa", "wind_direction_925hPa") for h in _detail_hrs],
-            "850 hPa": [_wlbl(h, "wind_speed_850hPa", "wind_direction_850hPa") for h in _detail_hrs],
-            "800 hPa": [_wlbl(h, "wind_speed_800hPa", "wind_direction_800hPa") for h in _detail_hrs],
             "700 hPa": [_wlbl(h, "wind_speed_700hPa", "wind_direction_700hPa") for h in _detail_hrs],
+            "800 hPa": [_wlbl(h, "wind_speed_800hPa", "wind_direction_800hPa") for h in _detail_hrs],
+            "850 hPa": [_wlbl(h, "wind_speed_850hPa", "wind_direction_850hPa") for h in _detail_hrs],
+            "925 hPa": [_wlbl(h, "wind_speed_925hPa", "wind_direction_925hPa") for h in _detail_hrs],
+            "gusts":   [f"{_detail_rbt.get(h['time'], {}).get('wind_gusts_10m', 0):.0f}" for h in _detail_hrs],
+            "10m":     [_wlbl(h, "wind_speed_10m",    "wind_direction_10m")    for h in _detail_hrs],
         },
         index=[h["time"][11:13] for h in _detail_hrs],
-    ).T   # rows = levels, columns = hours
-    st.dataframe(
-        df_wind.style.map(_wind_cell_color),
-        use_container_width=True,
-        # hide_index=False (default) → index = level names, sticky on horizontal scroll
-    )
+    ).T
+    st.dataframe(df_wind.style.map(_wind_cell_color), use_container_width=True)
 
 with st.expander("🔍 Status & alerts"):
+    # st.table renders a static HTML table — text wraps naturally, nothing is clipped.
     df_status = pd.DataFrame([{
-        "time":             h["time"][11:13],
-        "status":           ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
-        "reasons / alerts": _all_reasons(h),
+        "time":    h["time"][11:13],
+        "status":  ("✗ " + (h["veto_type"] or "?")) if h["veto"] else "✓",
+        "reasons": _all_reasons(h),
     } for h in _detail_hrs])
-    st.dataframe(df_status, use_container_width=True, hide_index=True)
+    st.table(df_status.set_index("time"))
