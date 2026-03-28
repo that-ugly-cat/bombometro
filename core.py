@@ -460,7 +460,8 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
     """
     Returns a dict with keys:
       thermal_score, thermal_reasons, thermal_active,
-      cloudbase_estimate_m, cloudbase_band, thermal_regime
+      cloudbase_estimate_m, cloudbase_band, thermal_regime,
+      wind_thermal_pen, shear_thermal_pen
     """
     reasons = []
     hour     = int(row["time"][11:13])
@@ -474,6 +475,8 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
     cloud_hi = safe_value(row, "cloud_cover_high", 0.0)
     rh_925   = safe_value(row, "relative_humidity_925hPa", 50.0)
     rh_850   = safe_value(row, "relative_humidity_850hPa", 50.0)
+    w10      = safe_value(row, "wind_speed_10m")
+    w925     = safe_value(row, "wind_speed_925hPa")
 
     sw_sc   = (0.0 if shortwave <= 100 else
                100.0 if shortwave >= 700 else 100.0 * (shortwave - 100.0) / 600.0)
@@ -489,7 +492,35 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
     cape_sc   = (0.0 if cape   <= 0 else 100.0 if cape   >= 600 else 100.0 * cape   / 600.0)
     resp_sc   = clamp(0.75 * spread_sc + 0.25 * cape_sc, 0, 100)
 
-    t_sc          = clamp(0.70 * heat_sc + 0.30 * resp_sc, 0, 100)
+    t_sc_raw  = clamp(0.70 * heat_sc + 0.30 * resp_sc, 0, 100)
+
+    # ── Wind modulation ───────────────────────────────────────────────────────
+    # Surface wind speed: light breeze organises thermals; calm or strong wind
+    # degrades them.  Optimal range 6–18 km/h; no penalty there.
+    # Calm (< 4 km/h): thermals form but are weak, scattered, hard to centre.
+    # Strong (> 18 km/h): thermals are compressed, swept downwind, rotor risk.
+    if w10 <= 4.0:
+        wind_th_pen = 7.0 * (1.0 - w10 / 4.0)           # 0 → 7 pt as wind → 0
+    elif w10 <= 15.0:
+        wind_th_pen = 0.0                                 # sweet spot
+    else:
+        wind_th_pen = clamp(25.0 * (w10 - 15.0) / 17.0, 0.0, 25.0)  # +25 at 32 km/h
+
+    # Low-level shear (10 m → 925 hPa, ~750 m): large differential tilts and
+    # fragments thermal cores, creating asymmetric and unpredictable structures.
+    shear_lo = abs(w925 - w10)
+    if shear_lo <= 8.0:
+        shear_th_pen = 0.0
+    elif shear_lo >= 20.0:
+        shear_th_pen = 20.0
+    else:
+        shear_th_pen = 20.0 * (shear_lo - 8.0) / 12.0
+
+    wind_th_pen  = round(wind_th_pen,  1)
+    shear_th_pen = round(shear_th_pen, 1)
+    t_sc         = clamp(t_sc_raw - wind_th_pen - shear_th_pen, 0.0, 100.0)
+    # ─────────────────────────────────────────────────────────────────────────
+
     cloudbase_m   = 0.0 if spread <= 0 else 125.0 * spread
     cb_band       = ("low" if cloudbase_m < 800 else "medium" if cloudbase_m < 1800 else "high")
 
@@ -525,6 +556,18 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
         "moderate temperature-dewpoint spread"     if spread >= 6  else
         "humid boundary layer")
     if cape >= 300: reasons.append("convective support present")
+    # wind modulation reasons (only when penalty is non-trivial)
+    if wind_th_pen >= 8:
+        reasons.append(
+            "surface too calm — thermals weak and disorganised" if w10 < 4
+            else "strong surface wind compressing thermals")
+    elif wind_th_pen >= 3:
+        reasons.append("light wind limiting thermal organisation" if w10 < 6
+                       else "surface wind on the strong side for thermals")
+    if shear_th_pen >= 12:
+        reasons.append("boundary-layer shear deforming thermal cores")
+    elif shear_th_pen >= 5:
+        reasons.append("some low-level shear present")
     reasons.append({
         "blue":   "blue thermals likely",
         "cumulus":"cumulus likely",
@@ -538,6 +581,8 @@ def thermal_score(row: Dict[str, Any]) -> Dict[str, Any]:
         "cloudbase_estimate_m": round(cloudbase_m, 0),
         "cloudbase_band":       cb_band,
         "thermal_regime":       regime,
+        "wind_thermal_pen":     wind_th_pen,
+        "shear_thermal_pen":    shear_th_pen,
     }
 
 
