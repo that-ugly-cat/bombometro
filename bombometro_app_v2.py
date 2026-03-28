@@ -701,23 +701,22 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
     #             row6=0.239, row7=0.087.
     # Legends : yanchor="bottom", y = panel_top + 0.005 → just above the panel.
     # Titles  : annotation loop adds +0.033 → mid-gap (half of 0.065 spacing).
-    # Legends sit INSIDE each panel (top-left corner, semi-transparent bg).
-    # yanchor="top" + y = panel_domain_top - 0.003 → top of legend just inside the panel.
-    # This avoids gap crowding and wrap-overlap on mobile.
+    # Legends in the gap ABOVE each panel.
+    # yanchor="bottom" + y = panel_top + 0.005 → legend sits just above the panel.
+    # Titles are at panel_top + 0.028 (mid-gap); both extend upward, no overlap.
     # Panel domain tops (vertical_spacing=0.065, 7 equal rows):
     #   row1=1.000  row2=0.848  row3=0.696  row4=0.544
     #   row5=0.391  row6=0.239  row7=0.087
-    _LEG = dict(orientation="h", xanchor="left", x=0.01,
-                yanchor="top",
-                bgcolor="rgba(28,28,46,0.80)",
-                font=dict(size=10), tracegroupgap=3)
+    _LEG = dict(orientation="h", xanchor="left", x=0.0,
+                yanchor="bottom",
+                bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
 
     fig.update_layout(
         height=2000,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=22, r=38, t=52, b=4),
+        margin=dict(l=22, r=38, t=68, b=6),
         barmode="group",
         hovermode="x unified",
         hoverlabel=dict(
@@ -725,13 +724,13 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, y=0.997),   # row 1 — inside top
-        legend2=dict(**_LEG, y=0.845),   # row 2
-        legend3=dict(**_LEG, y=0.693),   # row 3
-        legend4=dict(**_LEG, y=0.541),   # row 4
-        legend5=dict(**_LEG, y=0.388),   # row 5
-        legend6=dict(**_LEG, y=0.236),   # row 6
-        legend7=dict(**_LEG, y=0.084),   # row 7
+        legend =dict(**_LEG, y=1.005),   # row 1 — just above panel in top margin
+        legend2=dict(**_LEG, y=0.853),   # row 2 — gap top: 0.848 + 0.005
+        legend3=dict(**_LEG, y=0.701),   # row 3 — gap top: 0.696 + 0.005
+        legend4=dict(**_LEG, y=0.549),   # row 4 — gap top: 0.544 + 0.005
+        legend5=dict(**_LEG, y=0.396),   # row 5 — gap top: 0.391 + 0.005
+        legend6=dict(**_LEG, y=0.244),   # row 6 — gap top: 0.239 + 0.005
+        legend7=dict(**_LEG, y=0.092),   # row 7 — gap top: 0.087 + 0.005
     )
 
     # x-axes: numeric integer hours; tickvals/ticktext give "06","07"… display.
@@ -773,10 +772,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
                      showgrid=False, nticks=3,
                      tickfont=dict(color="#64B5F6", size=8))
 
-    # Subplot title annotations: centre each title in its gap.
-    # make_subplots places them at domain_top with yanchor="bottom" by default,
-    # so text renders above the panel top.  +0.028 ≈ centre of 0.065 gap
-    # (row-1 title goes into the top margin; t=52 gives ~26px clearance).
+    # Subplot title annotations: lift into mid-gap above each panel.
+    # make_subplots places them at domain_top with yanchor="bottom",
+    # so text renders above the panel.  +0.033 ≈ mid of 0.065 gap.
+    # Row-1 title lands at y=1.033 — inside the 68px top margin (fine).
     for ann in fig.layout.annotations:
         ann.font.size  = 11
         ann.font.color = TEXT
@@ -784,7 +783,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
         ann.xanchor    = "left"
         ann.xref       = "paper"
         ann.yanchor    = "bottom"
-        ann.y         += 0.028   # mid-gap offset
+        ann.y         += 0.033   # mid-gap: panel_top + 0.033
 
     return fig
 
