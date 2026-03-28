@@ -549,6 +549,7 @@ def risk_score(row: Dict[str, Any], site: SiteConfig) -> Tuple[float, List[str]]
     cloud_hi = safe_value(row, "cloud_cover_high", 0.0)
     rh700    = safe_value(row, "relative_humidity_700hPa", 50.0)
     rh600    = safe_value(row, "relative_humidity_600hPa", 50.0)
+    gusts    = safe_value(row, "wind_gusts_10m")
     dw10     = max(safe_value(row, "delta_wind_10m"),    0.0)
     dg10     = max(safe_value(row, "delta_gusts_10m"),   0.0)
     dw925    = max(safe_value(row, "delta_wind_925hPa"), 0.0)
@@ -563,15 +564,24 @@ def risk_score(row: Dict[str, Any], site: SiteConfig) -> Tuple[float, List[str]]
     def jsc(d: float, s: float, f: float) -> float:
         return 0.0 if d <= s else 100.0 if d >= f else 100.0 * (d - s) / (f - s)
 
-    wjr   = clamp(0.20 * jsc(dw10, 3, 10) + 0.35 * jsc(dg10, 4, 12)
-                + 0.45 * jsc(dw925, 3, 10), 0, 100)
-    score = clamp(0.60 * storm_risk + 0.40 * wjr, 0, 100)
+    # Absolute gust level: ramps from 0 at 45 % of gust_max to 100 at gust_max.
+    # Captures risk from sustained gusty conditions independent of their trend.
+    gust_lvl = jsc(gusts, site.gust_max_kmh * 0.45, site.gust_max_kmh)
+
+    # Wind-jump risk: trend-only (rate of change over the past hour).
+    wjr = clamp(0.20 * jsc(dw10, 3, 10) + 0.35 * jsc(dg10, 4, 12)
+              + 0.45 * jsc(dw925, 3, 10), 0, 100)
+
+    # Final score: storm 55 % · gust level 20 % · wind trends 25 %
+    score = clamp(0.55 * storm_risk + 0.20 * gust_lvl + 0.25 * wjr, 0, 100)
 
     if storm_risk >= 65: reasons.append("risk of overdevelopment")
     elif storm_risk >= 35: reasons.append("some convective instability")
     if precip > 0:          reasons.append("precipitation signal present")
     elif cloud_mid >= 75:   reasons.append("strong mid-cloud build-up")
     if hum_risk >= 75:      reasons.append("humid upper levels")
+    if gust_lvl >= 67:      reasons.append("gusts high")
+    elif gust_lvl >= 33:    reasons.append("gusts notable")
     if wjr >= 65:           reasons.append("wind increasing rapidly")
     elif wjr >= 35:         reasons.append("wind strengthening")
     if dw925 >= 5:          reasons.append("launch-level wind rising")
