@@ -701,15 +701,23 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
     #             row6=0.239, row7=0.087.
     # Legends : yanchor="bottom", y = panel_top + 0.005 → just above the panel.
     # Titles  : annotation loop adds +0.033 → mid-gap (half of 0.065 spacing).
-    _LEG = dict(orientation="h", xanchor="left", x=0.0,
-                bgcolor="rgba(0,0,0,0)", font=dict(size=10), tracegroupgap=4)
+    # Legends sit INSIDE each panel (top-left corner, semi-transparent bg).
+    # yanchor="top" + y = panel_domain_top - 0.003 → top of legend just inside the panel.
+    # This avoids gap crowding and wrap-overlap on mobile.
+    # Panel domain tops (vertical_spacing=0.065, 7 equal rows):
+    #   row1=1.000  row2=0.848  row3=0.696  row4=0.544
+    #   row5=0.391  row6=0.239  row7=0.087
+    _LEG = dict(orientation="h", xanchor="left", x=0.01,
+                yanchor="top",
+                bgcolor="rgba(28,28,46,0.80)", borderpad=3,
+                font=dict(size=10), tracegroupgap=3)
 
     fig.update_layout(
         height=2000,
         paper_bgcolor=BG,
         plot_bgcolor=PANEL_BG,
         font=dict(color=TEXT, size=11, family="system-ui, sans-serif"),
-        margin=dict(l=22, r=38, t=68, b=8),
+        margin=dict(l=22, r=38, t=52, b=4),
         barmode="group",
         hovermode="x unified",
         hoverlabel=dict(
@@ -717,13 +725,13 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
             font=dict(size=12, color=TEXT),
             namelength=-1,
         ),
-        legend =dict(**_LEG, yanchor="bottom", y=1.005),  # top margin (above row 1)
-        legend2=dict(**_LEG, yanchor="bottom", y=0.853),  # gap above row 2
-        legend3=dict(**_LEG, yanchor="bottom", y=0.701),  # gap above row 3
-        legend4=dict(**_LEG, yanchor="bottom", y=0.549),  # gap above row 4 (atm. profile)
-        legend5=dict(**_LEG, yanchor="bottom", y=0.396),  # gap above row 5 (cloud)
-        legend6=dict(**_LEG, yanchor="bottom", y=0.244),  # gap above row 6 (foehn)
-        legend7=dict(**_LEG, yanchor="bottom", y=0.092),  # gap above row 7 (wind)
+        legend =dict(**_LEG, y=0.997),   # row 1 — inside top
+        legend2=dict(**_LEG, y=0.845),   # row 2
+        legend3=dict(**_LEG, y=0.693),   # row 3
+        legend4=dict(**_LEG, y=0.541),   # row 4
+        legend5=dict(**_LEG, y=0.388),   # row 5
+        legend6=dict(**_LEG, y=0.236),   # row 6
+        legend7=dict(**_LEG, y=0.084),   # row 7
     )
 
     # x-axes: numeric integer hours; tickvals/ticktext give "06","07"… display.
@@ -765,8 +773,10 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
                      showgrid=False, nticks=3,
                      tickfont=dict(color="#64B5F6", size=8))
 
-    # Subplot title annotations: push upward into mid-gap.
-    # make_subplots places them at domain_top (yanchor="bottom"); +0.033 = mid of 0.065 gap.
+    # Subplot title annotations: centre each title in its gap.
+    # make_subplots places them at domain_top with yanchor="bottom" by default,
+    # so text renders above the panel top.  +0.028 ≈ centre of 0.065 gap
+    # (row-1 title goes into the top margin; t=52 gives ~26px clearance).
     for ann in fig.layout.annotations:
         ann.font.size  = 11
         ann.font.color = TEXT
@@ -774,7 +784,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
         ann.xanchor    = "left"
         ann.xref       = "paper"
         ann.yanchor    = "bottom"
-        ann.y         += 0.033   # lift into gap; row-1 title lands in top margin
+        ann.y         += 0.028   # mid-gap offset
 
     return fig
 
@@ -983,17 +993,25 @@ div[data-testid="stExpander"] > div { background-color: #252540; }
 
 /* ── Maximise plot area — reduce Streamlit container padding ───────────────── */
 .main .block-container {
+    padding-top:    1.5rem  !important;
     padding-left:   0.75rem !important;
     padding-right:  0.75rem !important;
-    padding-bottom: 1rem    !important;
+    padding-bottom: 0.5rem  !important;
     max-width:      100%    !important;
 }
 @media (max-width: 768px) {
     .main .block-container {
+        padding-top:   0.75rem !important;
         padding-left:  0.25rem !important;
         padding-right: 0.25rem !important;
     }
 }
+
+/* ── Hide Streamlit footer (removes ~50px of bottom whitespace) ─────────────── */
+footer { visibility: hidden; height: 0 !important; overflow: hidden !important; }
+
+/* ── Prevent inner scrollbar on Plotly chart iframe ────────────────────────── */
+div[data-testid="stPlotlyChart"] > div { overflow: hidden !important; }
 
 /* ── Fetch button in sidebar — green ───────────────────────────────────────── */
 div[data-testid="stSidebar"] button[data-testid="baseButton-primary"] {
@@ -1232,7 +1250,7 @@ else:
 
 fig = make_day_chart(d, evaluated, rows, SITE, sun_times=_sun)
 if fig:
-    st.plotly_chart(fig, width="stretch", height=2000, config={
+    st.plotly_chart(fig, width="stretch", config={
         "displayModeBar": False,
         "scrollZoom": False,
     })
