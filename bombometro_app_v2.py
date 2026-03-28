@@ -709,7 +709,7 @@ def make_day_chart(day: str, evaluated_all, rows_all, site: SiteConfig,
     #   row5=0.391  row6=0.239  row7=0.087
     _LEG = dict(orientation="h", xanchor="left", x=0.01,
                 yanchor="top",
-                bgcolor="rgba(28,28,46,0.80)", borderpad=3,
+                bgcolor="rgba(28,28,46,0.80)",
                 font=dict(size=10), tracegroupgap=3)
 
     fig.update_layout(
