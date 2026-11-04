@@ -117,6 +117,9 @@ dt { color: var(--muted); }dd { margin: 0; }
 .swatch { display: inline-block; width: 10px; height: 3px; background: currentColor; }
 .chart { display: block; width: 100%; height: auto; overflow: visible; }
 .grid-line { stroke: var(--border); stroke-width: 1; }
+.zero-reference { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.zero-label { font-weight: 700; }
+.zero-key { background: none; border-top: 2px dashed var(--muted); }
 .axis-label { fill: var(--muted); font-size: 17px; }
 .y-label { font-size: 21px; font-variant-numeric: tabular-nums; }
 .right-axis { fill: currentColor; }
@@ -134,8 +137,9 @@ dt { color: var(--muted); }dd { margin: 0; }
 .chart-tooltip { position: absolute; z-index: 5; top: 8px; width: max-content; max-width: min(310px, 100%); padding: 12px; border: 1px solid var(--muted); border-radius: 6px; background: var(--card); color: var(--text); font-size: 11px; }
 .tooltip-heading { display: block; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
 .tooltip-row { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; }
-.tooltip-row > span { display: flex; align-items: center; gap: 6px; }
-.tooltip-row b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.tooltip-row > span { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.tooltip-row .swatch { flex-shrink: 0; }
+.tooltip-row b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; flex-shrink: 0; max-width: 55%; }
 .tooltip-status { font-size: 10px; color: var(--muted); max-width: 270px; margin-top: 8px; }
 .wind-table-card { margin-top: 18px; padding: 20px 18px; }
 .table-wrap { position: relative; overflow-x: auto; margin-top: 18px; }

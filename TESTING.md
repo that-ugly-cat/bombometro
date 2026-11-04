@@ -133,3 +133,23 @@ The extended live browser suite passes in both themes at 1440/768/390/320 px:
 all seven first-column cells have the expected width, no label overflows, the
 column remains pinned while scrolling, and the page does not widen. Inspected
 the 390 px table screenshot. Existing tooltip, axis and heatmap checks also pass.
+
+## Follow-up: foehn zero and pressure-level altitudes
+
+4 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Reproduced the missing zero tick with an all-negative pressure series: the old
+ticks were -3.1, -1.825, -0.55, 0.725 and 2 hPa. The foehn pressure plot now has a
+symmetric domain and five ticks, always including zero at the vertical midpoint,
+with a stronger dashed reference line. Sub-hPa ranges also use their actual span.
+
+Wind, temperature and humidity legends and tooltips now show the approximate
+750/1,500/1,950/3,000 m AMSL counterparts of 925/850/800/700 hPa. One shared mapping
+also supplies the wind-table altitudes. Notes retain the distinction from height
+above launch and warn that pressure levels can fall below terrain.
+
+**92 automated tests pass**, including negative-only, positive-only, mixed,
+all-zero, sub-hPa, missing and empty pressure series; shared altitude labels; wind
+direction retention; and the rendered zero line. The live Chromium suite passes
+in both themes at 1440/768/390/320 px, including tooltip row-fit checks for the
+longer labels. Inspected the mobile touch tooltip and visible foehn zero reference.

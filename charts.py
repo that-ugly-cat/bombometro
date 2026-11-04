@@ -15,11 +15,16 @@ def regime_label(code):
     return REGIME_LABELS.get(code, "unclassified")
 
 
+PRESSURE_ALTITUDES = {925: 750, 850: 1500, 800: 1950, 700: 3000}
+
+
+def pressure_label(level):
+    return f"{level} hPa · ≈ {PRESSURE_ALTITUDES[level]:,} m AMSL"
+
+
 WIND_LEVELS = (
-    ("700 hPa", "≈ 3,000 m AMSL", "700hPa"),
-    ("800 hPa", "≈ 1,950 m AMSL", "800hPa"),
-    ("850 hPa", "≈ 1,500 m AMSL", "850hPa"),
-    ("925 hPa", "≈ 750 m AMSL", "925hPa"),
+    *((f"{level} hPa", f"≈ {PRESSURE_ALTITUDES[level]:,} m AMSL", f"{level}hPa")
+      for level in (700, 800, 850, 925)),
     ("Gusts", "10 m above model surface", None),
     ("10 m wind", "Above model surface", "10m"),
 )
@@ -67,7 +72,7 @@ def segments(values, x, y):
 
 
 def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=None,
-          secondary=None, altitude_ticks=False):
+          secondary=None, altitude_ticks=False, centered_zero=False):
     # series: (label, accessor, token index). Missing values are never drawn as zero.
     lines = [{"label": label, "values": [getter(h) for h in hours], "color": color,
               "unit": unit, "secondary": False}
@@ -78,6 +83,14 @@ def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=N
     step = 10 ** math.floor(math.log10(max(high - low, 1)))
     if upper is None:
         high = math.ceil(high / step) * step
+    if centered_zero:
+        magnitude = max((abs(v) for v in values), default=0)
+        if magnitude == 0:
+            high = 1.0
+        else:
+            scale = 10 ** math.floor(math.log10(magnitude))
+            high = math.ceil(magnitude * 1.12 / scale) * scale
+        low = -high
     # Wider left margin keeps metre labels inside the SVG, including commas.
     left, right = 82, 660 if secondary else 720
     if altitude_ticks:
@@ -88,7 +101,7 @@ def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=N
     else:
         tick_values = [low + (high - low) * i / 4 for i in range(5)]
     x = lambda i: left + i * (right - left) / max(len(hours) - 1, 1)
-    y = lambda v: 155 - (v - low) / max(high - low, 1) * 130
+    y = lambda v: 155 - (v - low) / (high - low) * 130
     if secondary:
         label, getter, color, secondary_unit, factor = secondary
         lines.append({"label": label, "values": [getter(h) for h in hours],
@@ -123,7 +136,9 @@ def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=N
         "title": title, "unit": unit, "note": note, "lines": lines, "hover": hover,
         "left": left, "right": right, "secondary": bool(secondary),
         "secondary_unit": secondary_unit if secondary else "",
-        "ticks": [{"value": f"{v:,.0f}" if altitude_ticks else f"{v:g}", "y": y(v)} for v in tick_values],
+        "centered_zero": centered_zero,
+        "ticks": [{"value": f"{v:,.0f}" if altitude_ticks else f"{v:g}", "y": y(v),
+                   "zero": centered_zero and v == 0} for v in tick_values],
         "right_ticks": [{"value": f"{v * factor:,.0f}", "y": y(v)} for v in tick_values] if secondary else [],
         "labels": [{"text": h["time"][11:13], "x": x(i)}
                    for i, h in enumerate(hours) if i % 2 == 0],
@@ -160,13 +175,15 @@ def day_charts(hours):
         chart("Wind by level", "km/h", hours, [
             ("10 m", raw("wind_speed_10m"), 1),
             ("Gusts", raw("wind_gusts_10m"), 4),
-            *[(f"{level} hPa", raw(f"wind_speed_{level}hPa"), color)
+            *[(pressure_label(level), raw(f"wind_speed_{level}hPa"), color)
               for level, color in [(925, 2), (850, 3), (800, 5), (700, 6)]]],
               directions={"10 m": "wind_direction_10m", **{
-                  f"{level} hPa": f"wind_direction_{level}hPa" for level in (925, 850, 800, 700)}}),
+                  pressure_label(level): f"wind_direction_{level}hPa" for level in (925, 850, 800, 700)}},
+              note="Pressure-level heights are approximate metres above sea level (AMSL), not above the launch; levels may lie below terrain."),
         chart("Foehn pressure gradient", "hPa", hours,
               [("North − south · ICON EU", raw("delta_p_foehn"), 5)],
-              note="Reference-station pressure difference, not a probability of foehn."),
+              centered_zero=True,
+              note="Centred on 0 hPa: north minus south reference pressure. Positive and negative departures use the same scale; this is not a probability of foehn."),
         chart("Cloud cover", "%", hours, [
             ("Low", raw("cloud_cover_low"), 1), ("Mid", raw("cloud_cover_mid"), 2),
             ("High", raw("cloud_cover_high"), 6)], upper=100,
@@ -177,12 +194,13 @@ def day_charts(hours):
               [("Shortwave radiation", raw("shortwave_radiation"), 3)]),
         chart("Temperature profile", "°C", hours, [
             ("2 m", raw("temperature_2m"), 1),
-            *[(f"{level} hPa", raw(f"temperature_{level}hPa"), color)
+            *[(pressure_label(level), raw(f"temperature_{level}hPa"), color)
               for level, color in [(925, 2), (850, 3), (700, 5)]]],
-              note="A warmer upper layer can indicate an inversion; pressure levels may lie below terrain."),
+              note="A warmer upper layer can indicate an inversion. Heights are approximate m AMSL, not above the launch; levels may lie below terrain."),
         chart("Relative humidity", "%", hours, [
-            (f"{level} hPa", raw(f"relative_humidity_{level}hPa"), color)
-            for level, color in [(925, 1), (850, 2), (800, 3), (700, 5)]], upper=100),
+            (pressure_label(level), raw(f"relative_humidity_{level}hPa"), color)
+            for level, color in [(925, 1), (850, 2), (800, 3), (700, 5)]], upper=100,
+              note="Heights are approximate m AMSL, not above the launch; pressure levels may lie below terrain."),
         chart("Temperature − dew point", "°C", hours, [("T − Td", spread, 2)],
               secondary=("Cloudbase estimate", cloudbase, 3, "m AGL", 125),
               note="Left: T − Td (°C). Right: cloudbase ≈ 125 × max(T − Td, 0), metres above the model surface (AGL), not AMSL. The derived dashed line overlaps the spread where positive."),

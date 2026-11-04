@@ -80,6 +80,12 @@ with sync_playwright() as p:
     assert page.locator(".wind-table-card").evaluate("el => el.nextElementSibling.id === 'hourly-details'")
     assert page.locator(".day-card .regime-badge").count() == 5
     assert page.locator(".verdict-face").count() > 0
+    foehn = page.locator(".chart-card").nth(3)
+    assert foehn.locator(".zero-label").text_content() == "0"
+    assert foehn.locator(".zero-reference").get_attribute("y1") == "90.0"
+    for index in (2, 7, 8):
+        labels = page.locator(".chart-card").nth(index).locator(".legend span").all_text_contents()
+        assert all("≈" in label and "m AMSL" in label for label in labels if "hPa" in label)
     report = []
     for theme in ("dark", "light"):
         if page.locator("html").get_attribute("data-theme") != theme:
@@ -130,6 +136,7 @@ with sync_playwright() as p:
                     assert tip.locator(".tooltip-regime").inner_text() == "Thermal regime: " + expected["regime"]
                     bounds = tip.bounding_box()
                     assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width
+                    assert tip.locator(".tooltip-row").evaluate_all("els => els.every(el => el.scrollWidth <= el.clientWidth + 1)")
                     svg.focus()
                     svg.press("Home")
                     svg.press("ArrowRight")

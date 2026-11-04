@@ -420,3 +420,42 @@ def test_regime_labels_preserve_daily_and_hourly_meanings():
     from charts import regime_label
     assert [regime_label(x) for x in ("cap", "capped", "cumulus", "blue", "stable", "off", None)] == [
         "capped", "capped", "cumulus", "blue thermals", "stable", "inactive", "unclassified"]
+
+
+@pytest.mark.parametrize("values", [(-3.1, -2.7, -1.9), (1.1, 2.7, 3.1), (-8, 0, 2),
+                                   (0, 0, 0), (-0.02, 0.01, 0.03), (None, None), ()])
+def test_foehn_axis_always_centres_and_marks_zero(values):
+    hours = [{"time": f"2026-11-04T{i + 6:02}:00", "complete": False,
+              "raw": {"delta_p_foehn": value}} for i, value in enumerate(values)]
+    plot = next(p for p in day_charts(hours) if p["title"] == "Foehn pressure gradient")
+    ticks = plot["ticks"]
+    assert plot["centered_zero"]
+    assert ticks[2]["value"] == "0" and ticks[2]["zero"]
+    assert ticks[2]["y"] == pytest.approx(90)
+    assert float(ticks[0]["value"]) == -float(ticks[-1]["value"])
+    assert ticks[0]["y"] == pytest.approx(155)
+    assert ticks[-1]["y"] == pytest.approx(25)
+    assert all(25 <= p["y"] <= 155 for p in plot["lines"][0]["points"])
+
+
+@pytest.mark.parametrize("title,levels", [("Wind by level", [925, 850, 800, 700]),
+                                         ("Temperature profile", [925, 850, 700]),
+                                         ("Relative humidity", [925, 850, 800, 700])])
+def test_pressure_level_legends_and_tooltips_include_shared_altitudes(sample, site, title, levels):
+    from charts import pressure_label, PRESSURE_ALTITUDES
+    report = build_report(site, sample["forecast"], sample["pressure"])
+    plot = next(p for p in day_charts(report["hours"][6:21]) if p["title"] == title)
+    labels = [line["label"] for line in plot["lines"] if "hPa" in line["label"]]
+    assert labels == [pressure_label(level) for level in levels]
+    for level, label in zip(levels, labels):
+        assert f"≈ {PRESSURE_ALTITUDES[level]:,} m AMSL" in label
+        assert all(label in [r["label"] for r in h["readings"]] for h in plot["hover"])
+    if title == "Wind by level":
+        assert "°" in plot["hover"][0]["readings"][2]["value"]
+
+
+def test_foehn_zero_reference_is_rendered(client):
+    text = client.get("/app").text
+    assert text.count('class="grid-line zero-reference"') == 1
+    assert 'class="axis-label y-label zero-label"' in text
+    assert "0 hPa reference" in text

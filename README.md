@@ -28,6 +28,9 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 - T−Td includes a dashed derived cloudbase with a right-hand AGL metre axis;
   freezing-level ticks use readable whole metres instead of scientific notation.
   The wind table follows the plots, immediately before hourly evidence.
+- The foehn pressure plot always has a symmetric axis around a labelled, emphasized
+  zero reference. Wind, temperature and humidity legends/tooltips include approximate
+  pressure-level altitudes in metres AMSL, using the same mapping as the wind table.
 - Wind-by-altitude table: 700/800/850/925 hPa, gusts and 10 m wind against local
   forecast hours, with direction and horizontal scrolling on mobile. The cell
   heatmap runs from blue at zero through cyan and amber to red at/above the site's
