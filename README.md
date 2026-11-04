@@ -25,6 +25,8 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 - Twelve lightweight server-rendered SVG charts and exact per-hour source values.
 - Wind-by-altitude table: 700/800/850/925 hPa, gusts and 10 m wind against local
   forecast hours, with direction, speed bands and horizontal scrolling on mobile.
+  Direction arrows point downwind; the small compass label states the wind's
+  origin. Calm and unavailable directions do not acquire an arrow.
 - Unified plot tooltips show every series at the selected hour, including wind
   directions, vetoes and missing values. Hover, tap, or focus a plot and use arrow
   keys; Home/End select the first/last hour and Escape dismisses the tooltip.

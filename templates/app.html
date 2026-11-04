@@ -49,21 +49,25 @@
   </dl></div><div><h3>Where the numbers come from</h3><p>Site forecast: {{ models[site.model] }}. Foehn reference pressures: <strong>ICON EU</strong>, regardless of the selected forecast model.</p><p>North: {{ site.foehn_north_name }}<br>South: {{ site.foehn_south_name }}</p><p>Returned model grid: {{ report.grid_latitude|fmt(3) }}°, {{ report.grid_longitude|fmt(3) }}° · elevation {{ report.grid_elevation|fmt(0) }} m AMSL. This is not a surveyed launch elevation.</p><p>The source may interpolate fields or stop early. Missing scoring inputs suppress the affected scores; optional diagnostics remain blank. A full day means 15 complete samples, not forecast certainty.</p></div></div>
 </details>
 <section class="card wind-table-card" aria-labelledby="wind-table-heading">
-  <div class="section-heading"><h2 id="wind-table-heading">Wind by altitude</h2><span class="muted">Direction from · speed in km/h</span></div>
+  <div class="section-heading"><h2 id="wind-table-heading">Wind by altitude</h2><span class="muted">Arrows point downwind · speed in km/h</span></div>
   <div class="table-wrap" tabindex="0" role="region" aria-label="Hourly wind by altitude. Scroll horizontally for all hours.">
     <table class="table wind-table">
       <caption class="sr-only">{{ site.name }}, {{ selected_day }}. Local time {{ site.timezone }}. Wind direction and speed by pressure level; gusts have no separate direction.</caption>
       <thead><tr><th scope="col">Level / approx. altitude</th>{% for h in hours %}<th scope="col">{{ h.time[11:16] }}</th>{% endfor %}</tr></thead>
       <tbody>{% for row in wind_rows %}<tr><th scope="row">{{ row.label }}<small>{{ row.altitude }}</small></th>
         {% for cell in row.cells %}<td class="wind-{{ cell.band }}">
-          {% if cell.has_direction %}<span class="wind-direction" {% if cell.direction is not none %}title="From {{ cell.direction|fmt(0) }}°"{% endif %}>{{ cell.compass or '—' }}<span class="sr-only">{% if cell.direction is not none %}, from {{ cell.direction|fmt(0) }} degrees{% else %} direction unavailable{% endif %}</span></span>{% endif %}
+          {% if cell.has_direction %}<span class="wind-direction" {% if cell.direction is not none and cell.speed != 0 %}title="From {{ cell.compass }} ({{ cell.direction|fmt(0) }}°); arrow points downwind"{% endif %}>
+            {% if cell.speed == 0 %}<span class="wind-compass">Calm</span>
+            {% elif cell.direction is not none %}<svg class="wind-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 V20 M6 14 L12 20 L18 14" transform="rotate({{ cell.direction|fmt }} 12 12)"/></svg><span class="wind-compass">{{ cell.compass }}</span><span class="sr-only">, from {{ cell.direction|fmt(0) }} degrees; arrow points downwind</span>
+            {% else %}<span class="wind-compass">—</span><span class="sr-only"> direction unavailable</span>{% endif %}
+          </span>{% endif %}
           <strong>{{ cell.speed|fmt(0) }}</strong><span class="sr-only">{% if cell.speed is none %}speed unavailable{% else %} km/h{% endif %}</span>
         </td>{% endfor %}
       </tr>{% endfor %}</tbody>
     </table>
   </div>
   <div class="wind-bands"><span class="wind-low">&lt; 15</span><span class="wind-moderate">15–&lt;25</span><span class="wind-strong">25–&lt;35</span><span class="wind-high">≥ 35 km/h</span><span>Colour = speed band, not flight safety. Values are rounded for display.</span></div>
-  <p class="chart-note">Pressure-level altitudes are approximate metres above sea level, not above the launch; a level can lie below local terrain. — means unavailable, not calm. On narrow screens, scroll the table sideways.</p>
+  <p class="chart-note">Arrows show where the wind blows; the small compass label shows where it comes from (N ↓, E ←, S ↑, W →). Calm wind has no arrow. Pressure-level altitudes are approximate metres above sea level, not above the launch; a level can lie below local terrain. — means unavailable, not calm. On narrow screens, scroll the table sideways.</p>
 </section>
 <div class="section-heading chart-heading"><div><p class="eyebrow">UNDER THE SURFACE</p><h2>The forecast, unpacked</h2></div><a class="btn btn-small" href="#hourly-details">Exact values ↓</a></div>
 <p class="chart-help">Hover or tap a plot for hourly values. With a plot focused, use ← / → to change hour and Escape to dismiss.</p>

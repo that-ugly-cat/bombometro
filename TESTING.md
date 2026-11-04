@@ -70,3 +70,14 @@ A separate touch-enabled mobile browser context confirms tap selection and
 outside-tap dismissal. Inspected the mobile wind tooltip screenshot; no JavaScript
 page errors. As before, these are browser emulation checks, not physical-device
 tests or an authenticated external login test.
+
+## Follow-up: wind direction arrows
+
+4 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+The table now uses SVG arrows pointing downwind, with a small wind-from compass
+label and an explicit legend. Calm, unavailable directions and gusts have no
+invented directional arrow. **63 automated tests pass**, including the four
+cardinal rotations and calm/missing/gust handling. Live Chromium checks confirm
+rendered arrows, no page overflow and no JavaScript errors in both themes at
+1440, 390 and 320 px. The desktop dark table screenshot was inspected.

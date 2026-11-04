@@ -317,3 +317,29 @@ def test_wind_table_and_tooltip_data_rendered(client):
     blobs = re.findall(r'<script type="application/json" class="chart-hover-data">(.*?)</script>', r.text)
     assert len(blobs) == 12
     assert all(len(json.loads(blob)["hours"]) == 15 for blob in blobs)
+
+
+@pytest.mark.parametrize("direction,compass", [(0, "N"), (90, "E"), (180, "S"), (270, "W")])
+def test_wind_arrows_point_downwind(client, sample, monkeypatch, direction, compass):
+    sample["forecast"]["hourly"]["wind_direction_700hPa"] = [direction] * 24
+    sample["forecast"]["hourly"]["wind_speed_700hPa"] = [10] * 24
+    monkeypatch.setattr(web, "cache", ForecastCache(
+        fetcher=lambda s: (sample["forecast"], sample["pressure"])))
+    text = client.get("/app").text
+    # Base path points down (towards south). Clockwise rotation by the wind-from
+    # bearing gives N -> south, E -> west, S -> north and W -> east.
+    assert f'd="M12 4 V20 M6 14 L12 20 L18 14" transform="rotate({direction:.1f} 12 12)"' in text
+    assert f'title="From {compass} ({direction}°); arrow points downwind"' in text
+
+
+def test_calm_and_missing_direction_have_no_arrow(client, sample, monkeypatch):
+    import re
+    sample["forecast"]["hourly"]["wind_speed_700hPa"] = [0] * 24
+    sample["forecast"]["hourly"]["wind_direction_800hPa"] = [None] * 24
+    monkeypatch.setattr(web, "cache", ForecastCache(
+        fetcher=lambda s: (sample["forecast"], sample["pressure"])))
+    text = client.get("/app").text
+    rows = re.findall(r'<tr><th scope="row">(.*?)</tr>', text, re.S)
+    assert "Calm" in rows[0] and 'class="wind-arrow"' not in rows[0]
+    assert "direction unavailable" in rows[1] and 'class="wind-arrow"' not in rows[1]
+    assert 'class="wind-arrow"' not in rows[4]  # Gusts do not acquire an invented direction.
