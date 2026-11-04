@@ -23,6 +23,11 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 - Grappa and Cavallaria; five original model choices; up to five forecast days.
 - Day classifications, model windows, sunrise/noon/sunset, hourly veto reasons.
 - Twelve lightweight server-rendered SVG charts and exact per-hour source values.
+- Wind-by-altitude table: 700/800/850/925 hPa, gusts and 10 m wind against local
+  forecast hours, with direction, speed bands and horizontal scrolling on mobile.
+- Unified plot tooltips show every series at the selected hour, including wind
+  directions, vetoes and missing values. Hover, tap, or focus a plot and use arrow
+  keys; Home/End select the first/last hour and Escape dismisses the tooltip.
 - Borant dark/light themes, native forms and disclosures, responsive layout.
 - 30-minute per-site/model memory cache; same-key requests coalesce, different
   selections do not wait behind each other's network requests. Failure backoff: 60s.

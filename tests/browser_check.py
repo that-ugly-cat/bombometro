@@ -46,6 +46,8 @@ with sync_playwright() as p:
     assert response.status == 200, page.locator(".flash").inner_text()
     assert page.locator(".day-card").count() == 5
     assert page.locator(".chart-card").count() == 12
+    assert page.locator(".wind-table tbody tr").count() == 6
+    assert page.locator(".wind-table tbody td").count() == 90
     report = []
     for theme in ("dark", "light"):
         if page.locator("html").get_attribute("data-theme") != theme:
@@ -56,6 +58,35 @@ with sync_playwright() as p:
             page.set_viewport_size({"width": width, "height": 1000})
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (theme, width)
             page.screenshot(path=str(OUTPUT / f"forecast-{theme}-{width}.png"), full_page=True)
+            if width in (1440, 320):
+                for i in range(12):
+                    card = page.locator(".chart-card").nth(i)
+                    svg = card.locator(".chart")
+                    svg.scroll_into_view_if_needed()
+                    page.mouse.move(0, 0)
+                    box = svg.bounding_box()
+                    page.mouse.move(box["x"] + box["width"] * 288 / 752,
+                                    box["y"] + box["height"] * 70 / 185)
+                    tip = card.locator(".chart-tooltip")
+                    assert tip.is_visible(), (theme, width, i)
+                    expected = json.loads(card.locator(".chart-hover-data").text_content())["hours"][5]
+                    assert tip.locator(".tooltip-heading").inner_text().startswith("11:00")
+                    assert tip.locator(".tooltip-row b").all_text_contents() == [r["value"] for r in expected["readings"]]
+                    bounds = tip.bounding_box()
+                    assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width
+                    svg.focus()
+                    svg.press("Home")
+                    svg.press("ArrowRight")
+                    assert tip.locator(".tooltip-heading").inner_text().startswith("07:00")
+                    svg.press("End")
+                    assert tip.locator(".tooltip-heading").inner_text().startswith("20:00")
+                    svg.press("Escape")
+                    assert not tip.is_visible()
+                    svg.evaluate("el => el.blur()")
+                table = page.locator(".table-wrap")
+                table.evaluate("el => el.scrollLeft = el.scrollWidth")
+                assert table.evaluate("el => el.scrollLeft > 0")
+                table.evaluate("el => el.scrollLeft = 0")
         report.append({"theme": theme, "contrast": contrast})
     page.reload(wait_until="networkidle")
     assert page.locator("html").get_attribute("data-theme") == "light"
@@ -77,6 +108,24 @@ with sync_playwright() as p:
     page.goto(BASE + "/", wait_until="networkidle")
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors, errors
+    touch_context = browser.new_context(viewport={"width": 390, "height": 844},
+                                        is_mobile=True, has_touch=True)
+    touch = touch_context.new_page()
+    touch.on("pageerror", lambda error: errors.append(str(error)))
+    touch.goto(BASE + "/app", wait_until="networkidle")
+    wind_card = touch.locator(".chart-card").nth(2)
+    wind_svg = wind_card.locator(".chart")
+    wind_svg.scroll_into_view_if_needed()
+    box = wind_svg.bounding_box()
+    touch.touchscreen.tap(box["x"] + box["width"] * 336 / 752,
+                          box["y"] + box["height"] * 70 / 185)
+    assert wind_card.locator(".chart-tooltip").is_visible()
+    assert wind_card.locator(".tooltip-heading").inner_text().startswith("12:00")
+    touch.screenshot(path=str(OUTPUT / "wind-tooltip-touch.png"))
+    touch.locator(".chart-help").tap()
+    assert not wind_card.locator(".chart-tooltip").is_visible()
+    assert not errors, errors
+    touch_context.close()
     browser.close()
     (OUTPUT / "browser-results.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"browser": "Chromium", "themes": 2, "widths": [1440, 768, 390, 320],

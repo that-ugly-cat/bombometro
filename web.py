@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from charts import day_charts
+from charts import day_charts, wind_table
 from core import HOURLY_VARS, SITE_PRESETS, get_sun_times, wind_dir_label
 from forecast import MODELS, ForecastCache, ForecastError, make_site
 
@@ -108,7 +108,7 @@ def workspace(request: Request, site: str = Query("Grappa", max_length=40),
         sun = get_sun_times(config.latitude, config.longitude, config.timezone, selected)
     except ValueError:
         sun = None
-    context.update(report=report, selected_day=selected, hours=hours,
+    context.update(report=report, selected_day=selected, hours=hours, wind_rows=wind_table(hours),
                    summary=report["summaries"][selected], sun=sun,
                    fetched=report["fetched_at"].astimezone(ZoneInfo(config.timezone)),
                    charts=day_charts(hours), raw_keys=HOURLY_VARS + [

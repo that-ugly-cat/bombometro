@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 import forecast
 import web
-from charts import day_charts, segments
+from charts import day_charts, segments, wind_table
 from core import SITE_PRESETS, run_pipeline
 from forecast import ForecastCache, ForecastError, build_report, make_site
 
@@ -260,3 +260,60 @@ def test_slow_fetch_does_not_block_other_cached_selection(sample, site):
         finally:
             release.set()
         slow.result()
+
+
+def test_wind_table_levels_direction_and_speed(sample, site):
+    report = build_report(site, sample["forecast"], sample["pressure"])
+    hours = report["hours"][6:21]
+    rows = wind_table(hours)
+    assert [r["label"] for r in rows] == ["700 hPa", "800 hPa", "850 hPa", "925 hPa", "Gusts", "10 m wind"]
+    assert all(len(r["cells"]) == 15 for r in rows)
+    assert rows[0]["cells"][0]["speed"] == hours[0]["raw"]["wind_speed_700hPa"]
+    assert rows[0]["cells"][0]["direction"] == hours[0]["raw"]["wind_direction_700hPa"]
+    assert rows[4]["cells"][0]["speed"] == hours[0]["raw"]["wind_gusts_10m"]
+    assert not rows[4]["cells"][0]["has_direction"]
+
+
+def test_wind_table_preserves_calm_and_unknown_separately():
+    rows = wind_table([{"raw": {"wind_speed_700hPa": 0, "wind_direction_700hPa": 0,
+                               "wind_speed_850hPa": 15}}])
+    assert rows[0]["cells"][0] == {"speed": 0, "direction": 0, "compass": "N", "band": "low", "has_direction": True}
+    assert rows[1]["cells"][0]["speed"] is None
+    assert rows[1]["cells"][0]["band"] == "unknown"
+    assert rows[2]["cells"][0]["compass"] is None
+    assert rows[2]["cells"][0]["band"] == "moderate"
+
+
+def test_tooltip_values_match_plots_and_distinguish_veto(sample, site):
+    sample["forecast"]["hourly"]["wind_gusts_10m"][12] = 80
+    sample["forecast"]["hourly"]["wind_speed_700hPa"][13] = None
+    report = build_report(site, sample["forecast"], sample["pressure"])
+    plots = day_charts(report["hours"][6:21])
+    for plot in plots:
+        assert len(plot["hover"]) == 15
+        for i, hover in enumerate(plot["hover"]):
+            assert hover["time"] == f"{i + 6:02}:00"
+            assert len(hover["readings"]) == len(plot["lines"])
+            for reading, line in zip(hover["readings"], plot["lines"]):
+                if line["values"][i] is not None:
+                    assert reading["value"].startswith(f'{line["values"][i]:.1f}')
+    assert plots[0]["hover"][6]["readings"][0]["value"] == "Veto"
+    assert "Veto:" in plots[0]["hover"][6]["status"]
+    assert plots[0]["hover"][7]["readings"][0]["value"] == "—"
+    assert plots[0]["hover"][7]["status"] == "Scoring inputs incomplete"
+    wind = next(p for p in plots if p["title"] == "Wind by level")
+    assert "°" in wind["hover"][0]["readings"][0]["value"]
+    assert "°" not in wind["hover"][0]["readings"][1]["value"]  # Gusts have no separate direction.
+
+
+def test_wind_table_and_tooltip_data_rendered(client):
+    import re
+    r = client.get("/app")
+    assert 'class="table wind-table"' in r.text
+    assert '<th scope="row">700 hPa' in r.text
+    assert '<th scope="col">20:00</th>' in r.text
+    ids = re.findall(r'id="(chart-tooltip-\d+)"', r.text)
+    assert len(ids) == len(set(ids)) == 12
+    blobs = re.findall(r'<script type="application/json" class="chart-hover-data">(.*?)</script>', r.text)
+    assert len(blobs) == 12
+    assert all(len(json.loads(blob)["hours"]) == 15 for blob in blobs)

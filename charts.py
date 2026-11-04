@@ -2,6 +2,36 @@
 
 import math
 
+from core import wind_dir_label
+
+
+WIND_LEVELS = (
+    ("700 hPa", "≈ 3,000 m AMSL", "700hPa"),
+    ("800 hPa", "≈ 1,950 m AMSL", "800hPa"),
+    ("850 hPa", "≈ 1,500 m AMSL", "850hPa"),
+    ("925 hPa", "≈ 750 m AMSL", "925hPa"),
+    ("Gusts", "10 m above model surface", None),
+    ("10 m wind", "Above model surface", "10m"),
+)
+
+
+def wind_table(hours):
+    """High-to-low pressure levels, with missing speed and direction kept distinct."""
+    rows = []
+    for label, altitude, level in WIND_LEVELS:
+        cells = []
+        for hour in hours:
+            raw = hour["raw"]
+            speed = raw.get(f"wind_speed_{level}" if level else "wind_gusts_10m")
+            direction = raw.get(f"wind_direction_{level}") if level else None
+            band = ("unknown" if speed is None else "low" if speed < 15 else
+                    "moderate" if speed < 25 else "strong" if speed < 35 else "high")
+            cells.append({"speed": speed, "direction": direction,
+                          "compass": wind_dir_label(direction) if direction is not None else None,
+                          "band": band, "has_direction": level is not None})
+        rows.append({"label": label, "altitude": altitude, "cells": cells})
+    return rows
+
 
 def segments(values, x, y):
     paths, points = [], []
@@ -17,7 +47,7 @@ def segments(values, x, y):
     return paths
 
 
-def chart(title, unit, hours, series, lower=0, upper=None, note=""):
+def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=None):
     # series: (label, accessor, token index). Missing values are never drawn as zero.
     lines = [{"label": label, "values": [getter(h) for h in hours], "color": color}
              for label, getter, color in series]
@@ -34,8 +64,24 @@ def chart(title, unit, hours, series, lower=0, upper=None, note=""):
         line["points"] = [{"x": x(i), "y": y(v), "value": v,
                            "time": hours[i]["time"][11:16]}
                           for i, v in enumerate(line["values"]) if v is not None]
+    hover = []
+    for i, hour in enumerate(hours):
+        readings = []
+        for line in lines:
+            value = line["values"][i]
+            display = "—" if value is None else f"{value:.1f}"
+            if value is not None and directions and line["label"] in directions:
+                direction = hour["raw"].get(directions[line["label"]])
+                display += (f" · {wind_dir_label(direction)} ({direction:.0f}°)"
+                            if direction is not None else " · direction unavailable")
+            if value is None and line["label"] == "Fly score" and hour.get("veto"):
+                display = "Veto"
+            readings.append({"label": line["label"], "value": display, "color": line["color"]})
+        hover.append({"time": hour["time"][11:16], "x": x(i), "readings": readings,
+                      "status": ("Scoring inputs incomplete" if not hour["complete"] else
+                                 "Veto: " + "; ".join(hour["veto_reasons"]) if hour.get("veto") else "")})
     return {
-        "title": title, "unit": unit, "note": note, "lines": lines,
+        "title": title, "unit": unit, "note": note, "lines": lines, "hover": hover,
         "ticks": [{"value": f"{low + (high - low) * i / 4:.3g}",
                    "y": y(low + (high - low) * i / 4)} for i in range(5)],
         "labels": [{"text": h["time"][11:13], "x": x(i)}
@@ -70,7 +116,9 @@ def day_charts(hours):
             ("10 m", raw("wind_speed_10m"), 1),
             ("Gusts", raw("wind_gusts_10m"), 4),
             *[(f"{level} hPa", raw(f"wind_speed_{level}hPa"), color)
-              for level, color in [(925, 2), (850, 3), (800, 5), (700, 6)]]]),
+              for level, color in [(925, 2), (850, 3), (800, 5), (700, 6)]]],
+              directions={"10 m": "wind_direction_10m", **{
+                  f"{level} hPa": f"wind_direction_{level}hPa" for level in (925, 850, 800, 700)}}),
         chart("Foehn pressure gradient", "hPa", hours,
               [("North − south · ICON EU", raw("delta_p_foehn"), 5)],
               note="Reference-station pressure difference, not a probability of foehn."),

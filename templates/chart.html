@@ -1,14 +1,19 @@
 <section class="card chart-card">
   <div class="section-heading"><h3>{{ chart.title }}</h3><span class="unit">{{ chart.unit }}</span></div>
   <div class="legend">{% for line in chart.lines %}<span><i class="swatch c{{ line.color }}"></i>{{ line.label }}</span>{% endfor %}</div>
-  <svg class="chart" viewBox="0 0 752 185" role="img" aria-label="{{ chart.title }}. Exact values in hourly details below.">
-    <title>{{ chart.title }} · {{ chart.unit }}</title>
+  <div class="chart-interaction">
+  <svg class="chart" viewBox="0 0 752 185" role="group" tabindex="0" aria-label="{{ chart.title }}. Use left and right arrow keys for hourly values, Escape to dismiss. Exact values also in hourly details below." aria-describedby="chart-tooltip-{{ chart_index }}">
     {% for tick in chart.ticks %}<line class="grid-line" x1="48" x2="720" y1="{{ tick.y }}" y2="{{ tick.y }}"/><text class="axis-label" x="40" y="{{ tick.y + 4 }}" text-anchor="end">{{ tick.value }}</text>{% endfor %}
     {% for label in chart.labels %}<text class="axis-label" x="{{ label.x }}" y="179" text-anchor="middle">{{ label.text }}</text>{% endfor %}
     {% for line in chart.lines %}<g class="c{{ line.color }}">
       {% for segment in line.segments %}<polyline class="data-line" points="{{ segment }}"/>{% endfor %}
-      {% for p in line.points %}<circle class="data-point" cx="{{ p.x }}" cy="{{ p.y }}" r="3"><title>{{ p.time }} · {{ line.label }}: {{ p.value|fmt }} {{ chart.unit }}</title></circle>{% endfor %}
+      {% for p in line.points %}<circle class="data-point" cx="{{ p.x }}" cy="{{ p.y }}" r="3"/>{% endfor %}
     </g>{% endfor %}
+    <line class="chart-crosshair" x1="48" x2="48" y1="25" y2="155" visibility="hidden"/>
   </svg>
+  <div class="chart-tooltip" id="chart-tooltip-{{ chart_index }}" role="tooltip" hidden></div>
+  </div>
+  <script type="application/json" class="chart-hover-data">{{ {'unit':chart.unit, 'hours':chart.hover}|tojson }}</script>
+  <span class="sr-only chart-announcement" role="status" aria-live="polite"></span>
   {% if chart.note %}<p class="chart-note">{{ chart.note }}</p>{% endif %}
 </section>

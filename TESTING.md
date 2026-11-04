@@ -48,3 +48,25 @@ Bastian (gpt-6.1-sol) reviewed the implementation read-only. All four concrete
 findings were corrected and covered by tests: missing initial trend, global fetch
 lock, no-window mean, and malformed grid metadata. This review and the tests do
 not validate the meteorological heuristics or certify flight safety.
+
+## Follow-up: wind matrix and unified tooltips
+
+4 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Added the requested wind-by-altitude matrix and whole-plot hourly tooltips.
+`uv run pytest -q`: **58 tests pass**. New tests cover table order/values, calm
+versus unknown wind, tooltip parity with the plotted arrays, missing/veto labels,
+wind-from directions, and twelve distinct tooltip IDs and JSON payloads.
+
+Extended live Chromium checks pass for every plot in both themes at 1440 and
+320 px: hover selects the expected hour, every displayed value matches the chart
+payload, tooltip stays within the viewport, arrow/Home/End navigation works and
+Escape dismisses it. Six table rows and 90 hourly cells are present. Horizontal
+table scrolling works without widening the page at 1440/768/390/320 px.
+An initial mobile overflow caused by absolutely positioned screen-reader labels
+was reproduced and fixed by positioning their scroll container.
+
+A separate touch-enabled mobile browser context confirms tap selection and
+outside-tap dismissal. Inspected the mobile wind tooltip screenshot; no JavaScript
+page errors. As before, these are browser emulation checks, not physical-device
+tests or an authenticated external login test.
