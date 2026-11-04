@@ -359,3 +359,64 @@ def test_calm_and_missing_direction_have_no_arrow(client, sample, monkeypatch):
     assert "Calm" in rows[0] and 'class="wind-arrow"' not in rows[0]
     assert "direction unavailable" in rows[1] and 'class="wind-arrow"' not in rows[1]
     assert 'class="wind-arrow"' not in rows[4]  # Gusts do not acquire an invented direction.
+
+
+def test_wind_table_is_immediately_before_hourly_evidence(client):
+    text = client.get("/app").text
+    assert text.index('class="chart-grid"') < text.index('class="card wind-table-card"') < text.index('id="hourly-details"')
+    assert 'class="regime-badge' in text
+
+
+@pytest.mark.parametrize("verdict", ["bad idea", "if you must", "meh", "not bad", "hammer day"])
+def test_every_verdict_has_its_own_face(verdict):
+    face = web.templates.env.get_template("verdict_face.html").module.face(verdict)
+    assert f'data-verdict="{verdict}"' in face
+    assert 'aria-hidden="true"' in face
+    assert '<svg' in face
+
+
+def test_unknown_verdict_does_not_invent_a_face():
+    assert "<svg" not in web.templates.env.get_template("verdict_face.html").module.face("incomplete data")
+
+
+def test_cloudbase_secondary_axis_uses_same_inputs_and_units(sample, site):
+    report = build_report(site, sample["forecast"], sample["pressure"])
+    plot = next(p for p in day_charts(report["hours"][6:21]) if p["title"] == "Temperature − dew point")
+    assert plot["secondary"] and plot["secondary_unit"] == "m AGL"
+    assert len(plot["lines"]) == 2
+    left, right = plot["lines"]
+    assert right["secondary"]
+    assert right["values"] == [round(max(0, v) * 125, 0) for v in left["values"]]
+    for a, b in zip(plot["ticks"], plot["right_ticks"]):
+        assert a["y"] == b["y"]
+        assert float(b["value"].replace(",", "")) == float(a["value"]) * 125
+    assert plot["hover"][0]["readings"][0]["value"].endswith("°C")
+    assert plot["hover"][0]["readings"][1]["value"].endswith("m AGL")
+
+
+def test_cloudbase_missing_and_negative_spread(sample, site):
+    hourly = sample["forecast"]["hourly"]
+    hourly["temperature_2m"][12] = None
+    hourly["temperature_2m"][13] = hourly["dew_point_2m"][13] - 1
+    report = build_report(site, sample["forecast"], sample["pressure"])
+    plot = next(p for p in day_charts(report["hours"][6:21]) if p["secondary"])
+    assert plot["lines"][0]["values"][6] is None
+    assert plot["lines"][1]["values"][6] is None
+    assert plot["lines"][1]["values"][7] == 0
+    assert len(plot["lines"][1]["segments"]) == 2
+
+
+def test_freezing_axis_uses_readable_metres_not_scientific_notation(sample, site):
+    import re
+    report = build_report(site, sample["forecast"], sample["pressure"])
+    plot = next(p for p in day_charts(report["hours"][6:21]) if p["title"] == "Freezing level")
+    assert all(re.fullmatch(r"-?[\d,]+", tick["value"]) for tick in plot["ticks"])
+    assert any("," in tick["value"] for tick in plot["ticks"])
+    assert plot["left"] >= 80
+    assert len(plot["ticks"]) <= 6
+
+
+def test_regime_labels_preserve_daily_and_hourly_meanings():
+    from charts import regime_label
+    assert [regime_label(x) for x in ("cap", "capped", "cumulus", "blue", "stable", "off", None)] == [
+        "capped", "capped", "cumulus", "blue thermals", "stable", "inactive", "unclassified"]

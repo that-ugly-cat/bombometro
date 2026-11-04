@@ -1,0 +1,14 @@
+{% macro face(verdict) -%}
+{% if verdict in ['bad idea', 'if you must', 'meh', 'not bad', 'hammer day'] %}
+<svg class="verdict-face" viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-verdict="{{ verdict }}">
+  <circle cx="12" cy="12" r="10"/>
+  {% if verdict == 'bad idea' %}<path d="m7 7 3 3 m0-3-3 3 m7-3 3 3 m0-3-3 3 M7 17 Q12 12 17 17"/>
+  {% else %}<circle class="face-eye" cx="8.5" cy="9" r="1"/><circle class="face-eye" cx="15.5" cy="9" r="1"/>
+    {% if verdict == 'if you must' %}<path d="M7 16 17 14 M8 14 9 17 M12 13.5 13 16.5 M16 13 17 16"/>
+    {% elif verdict == 'meh' %}<path d="M7 16 H17"/>
+    {% elif verdict == 'not bad' %}<path d="M7 14 Q12 20 17 14"/>
+    {% else %}<path d="M6.5 13.5 H17.5 Q17 19 12 19 Q7 19 6.5 13.5 Z"/>{% endif %}
+  {% endif %}
+</svg>
+{% endif %}
+{%- endmacro %}

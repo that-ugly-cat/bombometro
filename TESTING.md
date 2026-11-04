@@ -97,3 +97,27 @@ are distinct in each theme, the endpoints equal the palette tokens, and minimum
 text/arrow contrast across the complete scale is **6.38:1 dark / 9.04:1 light**.
 Responsive layout, table scrolling, all plot tooltips and touch interaction were
 rechecked. Inspected the live desktop heatmap screenshot.
+
+## Follow-up: ordering, regimes, altitude axes and verdict faces
+
+4 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Moved the wind table immediately before hourly evidence. Restored inherited daily
+regime badges and explicit hourly thermal-regime labels. Added decorative SVG faces
+for the five verdicts, retaining the text labels; unclassified data has no invented
+face. No scoring formulas changed.
+
+The old `.3g` tick formatting could turn freezing heights into scientific notation.
+Freezing-level ticks now use whole metres with thousands separators and regular
+intervals; all Y labels are larger and have a wider margin. T−Td adds a dashed
+cloudbase estimate and proportional right-hand metre-AGL axis, with per-series
+tooltip units. The guide explains why the derived curves overlap and distinguishes
+model-surface AGL from AMSL. Null inputs remain gaps; negative spread clamps the
+cloudbase estimate to zero, as in the original engine.
+
+**81 automated tests pass**, including ordering, all five face variants, unknown
+verdicts, regime names, altitude tick formatting, secondary-axis conversion and
+null/negative spread. The live Chromium suite passes in both themes at four widths;
+tooltips still select the correct hour after plot margins changed. Verified all
+altitude tick labels fit inside their SVG at 1440/390/320 px and inspected the
+freezing-level, dual-axis and verdict-card screenshots.

@@ -5,6 +5,16 @@ import math
 from core import wind_dir_label
 
 
+REGIME_LABELS = {"cap": "capped", "capped": "capped", "blue": "blue thermals",
+                 "cumulus": "cumulus", "off": "inactive", "stable": "stable",
+                 "short": "short window", "technical": "technical", "foehn": "foehn",
+                 "unclassified": "unclassified"}
+
+
+def regime_label(code):
+    return REGIME_LABELS.get(code, "unclassified")
+
+
 WIND_LEVELS = (
     ("700 hPa", "≈ 3,000 m AMSL", "700hPa"),
     ("800 hPa", "≈ 1,950 m AMSL", "800hPa"),
@@ -56,9 +66,11 @@ def segments(values, x, y):
     return paths
 
 
-def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=None):
+def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=None,
+          secondary=None, altitude_ticks=False):
     # series: (label, accessor, token index). Missing values are never drawn as zero.
-    lines = [{"label": label, "values": [getter(h) for h in hours], "color": color}
+    lines = [{"label": label, "values": [getter(h) for h in hours], "color": color,
+              "unit": unit, "secondary": False}
              for label, getter, color in series]
     values = [v for line in lines for v in line["values"] if v is not None]
     low = min([lower, *values])
@@ -66,11 +78,25 @@ def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=N
     step = 10 ** math.floor(math.log10(max(high - low, 1)))
     if upper is None:
         high = math.ceil(high / step) * step
-    x = lambda i: 48 + i * 672 / max(len(hours) - 1, 1)
+    # Wider left margin keeps metre labels inside the SVG, including commas.
+    left, right = 82, 660 if secondary else 720
+    if altitude_ticks:
+        interval = next((s for s in (250, 500, 1000, 2000, 5000) if (high - low) / s <= 5), 10000)
+        low = math.floor(low / interval) * interval
+        high = max(low + interval, math.ceil(high / interval) * interval)
+        tick_values = list(range(int(low), int(high) + 1, interval))
+    else:
+        tick_values = [low + (high - low) * i / 4 for i in range(5)]
+    x = lambda i: left + i * (right - left) / max(len(hours) - 1, 1)
     y = lambda v: 155 - (v - low) / max(high - low, 1) * 130
+    if secondary:
+        label, getter, color, secondary_unit, factor = secondary
+        lines.append({"label": label, "values": [getter(h) for h in hours],
+                      "color": color, "unit": secondary_unit, "secondary": True})
     for line in lines:
-        line["segments"] = segments(line["values"], x, y)
-        line["points"] = [{"x": x(i), "y": y(v), "value": v,
+        project_y = (lambda v: y(v / factor)) if line["secondary"] else y
+        line["segments"] = segments(line["values"], x, project_y)
+        line["points"] = [{"x": x(i), "y": project_y(v), "value": v,
                            "time": hours[i]["time"][11:16]}
                           for i, v in enumerate(line["values"]) if v is not None]
     hover = []
@@ -85,14 +111,20 @@ def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=N
                             if direction is not None else " · direction unavailable")
             if value is None and line["label"] == "Fly score" and hour.get("veto"):
                 display = "Veto"
-            readings.append({"label": line["label"], "value": display, "color": line["color"]})
+            if secondary:
+                display += " " + line["unit"]
+            readings.append({"label": line["label"], "value": display, "color": line["color"],
+                             "unit": line["unit"]})
         hover.append({"time": hour["time"][11:16], "x": x(i), "readings": readings,
+                      "regime": regime_label(hour.get("thermal_regime")) if hour["complete"] else "unclassified",
                       "status": ("Scoring inputs incomplete" if not hour["complete"] else
                                  "Veto: " + "; ".join(hour["veto_reasons"]) if hour.get("veto") else "")})
     return {
         "title": title, "unit": unit, "note": note, "lines": lines, "hover": hover,
-        "ticks": [{"value": f"{low + (high - low) * i / 4:.3g}",
-                   "y": y(low + (high - low) * i / 4)} for i in range(5)],
+        "left": left, "right": right, "secondary": bool(secondary),
+        "secondary_unit": secondary_unit if secondary else "",
+        "ticks": [{"value": f"{v:,.0f}" if altitude_ticks else f"{v:g}", "y": y(v)} for v in tick_values],
+        "right_ticks": [{"value": f"{v * factor:,.0f}", "y": y(v)} for v in tick_values] if secondary else [],
         "labels": [{"text": h["time"][11:13], "x": x(i)}
                    for i, h in enumerate(hours) if i % 2 == 0],
     }
@@ -108,6 +140,10 @@ def day_charts(hours):
     def spread(h):
         a, b = h["raw"].get("temperature_2m"), h["raw"].get("dew_point_2m")
         return a - b if a is not None and b is not None else None
+
+    def cloudbase(h):
+        value = spread(h)
+        return round(max(0, value) * 125, 0) if value is not None else None
 
     return [
         chart("Score & potential", "/ 100", hours, [
@@ -148,9 +184,10 @@ def day_charts(hours):
             (f"{level} hPa", raw(f"relative_humidity_{level}hPa"), color)
             for level, color in [(925, 1), (850, 2), (800, 3), (700, 5)]], upper=100),
         chart("Temperature − dew point", "°C", hours, [("T − Td", spread, 2)],
-              note="Rough cloudbase estimate = 125 × spread, metres above the model surface."),
+              secondary=("Cloudbase estimate", cloudbase, 3, "m AGL", 125),
+              note="Left: T − Td (°C). Right: cloudbase ≈ 125 × max(T − Td, 0), metres above the model surface (AGL), not AMSL. The derived dashed line overlaps the spread where positive."),
         chart("Freezing level", "m AMSL", hours,
-              [("0 °C level", raw("freezing_level_height"), 6)]),
+              [("0 °C level", raw("freezing_level_height"), 6)], altitude_ticks=True),
         chart("Convective energy", "J/kg", hours, [("CAPE", raw("cape"), 5)],
               note="CAPE alone does not determine thunderstorm or flight safety."),
     ]

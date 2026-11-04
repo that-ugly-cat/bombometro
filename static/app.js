@@ -71,7 +71,7 @@ document.querySelectorAll(".chart-card").forEach(card => {
     const hour = data.hours[index];
     const heading = document.createElement("strong");
     heading.className = "tooltip-heading";
-    heading.textContent = `${hour.time} · ${data.unit}`;
+    heading.textContent = `${hour.time} · ${data.secondary ? 'local time' : data.unit}`;
     tooltip.replaceChildren(heading);
     for (const reading of hour.readings) {
       const row = document.createElement("div");
@@ -92,6 +92,10 @@ document.querySelectorAll(".chart-card").forEach(card => {
       status.textContent = hour.status;
       tooltip.append(status);
     }
+    const regime = document.createElement("p");
+    regime.className = "tooltip-regime";
+    regime.textContent = `Thermal regime: ${hour.regime}`;
+    tooltip.append(regime);
     tooltip.hidden = false;
     crosshair.setAttribute("x1", hour.x);
     crosshair.setAttribute("x2", hour.x);
@@ -101,17 +105,17 @@ document.querySelectorAll(".chart-card").forEach(card => {
     const x = hour.x / 752 * width;
     const preferred = x < width / 2 ? x + 14 : x - tooltip.offsetWidth - 14;
     tooltip.style.left = `${Math.max(0, Math.min(width - tooltip.offsetWidth, preferred))}px`;
-    if (announce) announcement.textContent = `${hour.time}. ${hour.readings.map(r => `${r.label}: ${r.value} ${data.unit}`).join('. ')}. ${hour.status}`;
+    if (announce) announcement.textContent = `${hour.time}. ${hour.readings.map(r => `${r.label}: ${r.value}${data.secondary ? '' : ' ' + r.unit}`).join('. ')}. ${hour.status}. Thermal regime: ${hour.regime}`;
   }
   function point(event) {
     const matrix = svg.getScreenCTM();
     if (!matrix) return;
     const position = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-    if (position.x < 36 || position.x > 732 || position.y < 15 || position.y > 165) {
+    if (position.x < data.left - 12 || position.x > data.right + 12 || position.y < 15 || position.y > 165) {
       if (!tooltip.contains(event.target)) hide();
       return;
     }
-    const next = Math.round((position.x - 48) / 672 * (data.hours.length - 1));
+    const next = Math.round((position.x - data.left) / (data.right - data.left) * (data.hours.length - 1));
     if (tooltip.hidden || next !== index) show(next);
   }
   container.addEventListener("pointermove", event => {

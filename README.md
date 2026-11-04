@@ -22,7 +22,12 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 
 - Grappa and Cavallaria; five original model choices; up to five forecast days.
 - Day classifications, model windows, sunrise/noon/sunset, hourly veto reasons.
+- SVG verdict faces and inherited day/regime badges; hourly thermal regimes in
+  the timeline, chart tooltips and evidence. No new meteorological classification.
 - Twelve lightweight server-rendered SVG charts and exact per-hour source values.
+- T−Td includes a dashed derived cloudbase with a right-hand AGL metre axis;
+  freezing-level ticks use readable whole metres instead of scientific notation.
+  The wind table follows the plots, immediately before hourly evidence.
 - Wind-by-altitude table: 700/800/850/925 hPa, gusts and 10 m wind against local
   forecast hours, with direction and horizontal scrolling on mobile. The cell
   heatmap runs from blue at zero through cyan and amber to red at/above the site's
