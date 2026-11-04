@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{% block title %}Bombometro{% endblock %} · borant lab</title>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('bombometro-theme')==='light'?'light':'dark'}catch(e){}</script>
+  <link rel="icon" href="/static/mark.svg?v={{ asset_version }}" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_version }}">
+  <script src="/static/app.js?v={{ asset_version }}" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="Bombometro home"><img src="/static/mark.svg?v={{ asset_version }}" width="27" height="27" alt=""><span>bombometro<span class="brand-dot">.</span></span></a>
+      <nav aria-label="Main navigation">
+        <a href="/app" {% if request.url.path == '/app' %}aria-current="page"{% endif %}>Forecast</a>
+        <a href="/guide" {% if request.url.path == '/guide' %}aria-current="page"{% endif %}>How it works</a>
+        <span class="badge lab-badge">LAB / 03</span>
+        <button class="btn btn-small" type="button" id="theme-toggle" aria-label="Switch colour theme">Light mode</button>
+      </nav>
+    </div>
+  </header>
+  <main class="container" id="main">{% block content %}{% endblock %}</main>
+  <footer class="container footer">
+    <span>Bombometro <span class="muted">/</span> borant tools</span>
+    <span>Forecasts by <a href="https://open-meteo.com/" rel="noreferrer">Open-Meteo</a> · <a href="https://creativecommons.org/licenses/by/4.0/" rel="noreferrer">CC BY 4.0</a></span>
+    <span>Workshop preview · not a flight clearance</span>
+  </footer>
+</body>
+</html>
