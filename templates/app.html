@@ -54,8 +54,8 @@
     <table class="table wind-table">
       <caption class="sr-only">{{ site.name }}, {{ selected_day }}. Local time {{ site.timezone }}. Wind direction and speed by pressure level; gusts have no separate direction.</caption>
       <thead><tr><th scope="col">Level / approx. altitude</th>{% for h in hours %}<th scope="col">{{ h.time[11:16] }}</th>{% endfor %}</tr></thead>
-      <tbody>{% for row in wind_rows %}<tr><th scope="row">{{ row.label }}<small>{{ row.altitude }}</small></th>
-        {% for cell in row.cells %}<td class="wind-{{ cell.band }}">
+      <tbody>{% for row in wind_rows %}<tr><th scope="row">{{ row.label }}<small>{{ row.altitude }}</small><small>Red ≥ {{ row.limit|fmt(0) }} km/h</small></th>
+        {% for cell in row.cells %}<td class="{{ cell.color_class }}">
           {% if cell.has_direction %}<span class="wind-direction" {% if cell.direction is not none and cell.speed != 0 %}title="From {{ cell.compass }} ({{ cell.direction|fmt(0) }}°); arrow points downwind"{% endif %}>
             {% if cell.speed == 0 %}<span class="wind-compass">Calm</span>
             {% elif cell.direction is not none %}<svg class="wind-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 V20 M6 14 L12 20 L18 14" transform="rotate({{ cell.direction|fmt }} 12 12)"/></svg><span class="wind-compass">{{ cell.compass }}</span><span class="sr-only">, from {{ cell.direction|fmt(0) }} degrees; arrow points downwind</span>
@@ -66,7 +66,8 @@
       </tr>{% endfor %}</tbody>
     </table>
   </div>
-  <div class="wind-bands"><span class="wind-low">&lt; 15</span><span class="wind-moderate">15–&lt;25</span><span class="wind-strong">25–&lt;35</span><span class="wind-high">≥ 35 km/h</span><span>Colour = speed band, not flight safety. Values are rounded for display.</span></div>
+  <div class="wind-scale"><span>0 km/h</span><span class="wind-scale-ramp" aria-hidden="true"></span><span>At / above row limit</span><span class="wind-missing-key">Grey = unavailable</span></div>
+  <p class="chart-note">Colour follows speed relative to each level’s configured limit, shown at left. Upper-level references are not all hard vetoes; blue does not mean safe. Values are rounded for display, colours use the unrounded speed.</p>
   <p class="chart-note">Arrows show where the wind blows; the small compass label shows where it comes from (N ↓, E ←, S ↑, W →). Calm wind has no arrow. Pressure-level altitudes are approximate metres above sea level, not above the launch; a level can lie below local terrain. — means unavailable, not calm. On narrow screens, scroll the table sideways.</p>
 </section>
 <div class="section-heading chart-heading"><div><p class="eyebrow">UNDER THE SURFACE</p><h2>The forecast, unpacked</h2></div><a class="btn btn-small" href="#hourly-details">Exact values ↓</a></div>

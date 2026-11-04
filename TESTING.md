@@ -81,3 +81,19 @@ invented directional arrow. **63 automated tests pass**, including the four
 cardinal rotations and calm/missing/gust handling. Live Chromium checks confirm
 rendered arrows, no page overflow and no JavaScript errors in both themes at
 1440, 390 and 320 px. The desktop dark table screenshot was inspected.
+
+## Follow-up: blue-to-red wind heatmap
+
+4 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Replaced the four fixed speed bands with 31 blue/cyan/amber/red shades, normalized
+to each row's configured site limit. Zero is blue, the exact limit and higher
+values are red, missing speeds remain grey. Row headers disclose the thresholds;
+the legend distinguishes reference limits from hard vetoes. Scoring is unchanged.
+
+**70 automated tests pass**, including endpoints, just-below-limit values, clipping
+and per-level limits. The extended Chromium suite passes: all 31 computed colours
+are distinct in each theme, the endpoints equal the palette tokens, and minimum
+text/arrow contrast across the complete scale is **6.38:1 dark / 9.04:1 light**.
+Responsive layout, table scrolling, all plot tooltips and touch interaction were
+rechecked. Inspected the live desktop heatmap screenshot.

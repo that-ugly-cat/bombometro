@@ -108,7 +108,7 @@ def workspace(request: Request, site: str = Query("Grappa", max_length=40),
         sun = get_sun_times(config.latitude, config.longitude, config.timezone, selected)
     except ValueError:
         sun = None
-    context.update(report=report, selected_day=selected, hours=hours, wind_rows=wind_table(hours),
+    context.update(report=report, selected_day=selected, hours=hours, wind_rows=wind_table(hours, config),
                    summary=report["summaries"][selected], sun=sun,
                    fetched=report["fetched_at"].astimezone(ZoneInfo(config.timezone)),
                    charts=day_charts(hours), raw_keys=HOURLY_VARS + [

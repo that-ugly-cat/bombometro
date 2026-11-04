@@ -37,6 +37,35 @@ CONTRAST = """() => {
   return result;
 }"""
 
+WIND_CONTRAST = """() => {
+  const cell = document.querySelector('.wind-heat');
+  const original = cell.className;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
+  function rgb(css) {
+    ctx.clearRect(0,0,1,1); ctx.fillStyle=css; ctx.fillRect(0,0,1,1);
+    return Array.from(ctx.getImageData(0,0,1,1).data).slice(0,3);
+  }
+  function lum(v) {
+    return v.map(n=>{n/=255;return n<=.04045?n/12.92:Math.pow((n+.055)/1.055,2.4)})
+      .reduce((s,n,i)=>s+n*[.2126,.7152,.0722][i],0);
+  }
+  const result=[];
+  try {
+    for(let step=0;step<=30;step++) {
+      const range=Math.min(Math.floor(step/10),2);
+      cell.className=`wind-heat wind-range-${range} wind-mix-${step-range*10}`;
+      const style=getComputedStyle(cell), fg=rgb(style.color), bg=rgb(style.backgroundColor);
+      const a=lum(fg),b=lum(bg);
+      result.push({step,bg,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)});
+    }
+    const style=getComputedStyle(cell);
+    return {steps:result,blue:rgb(style.getPropertyValue('--wind-blue')),
+      red:rgb(style.getPropertyValue('--wind-red'))};
+  } finally { cell.className=original; }
+}"""
+
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page(viewport={"width": 1440, "height": 1000}, device_scale_factor=1)
@@ -54,6 +83,11 @@ with sync_playwright() as p:
             page.locator("#theme-toggle").click()
         contrast = page.evaluate(CONTRAST)
         assert all(c["ratio"] >= 4.5 for c in contrast), contrast
+        wind_contrast = page.evaluate(WIND_CONTRAST)
+        assert min(c["ratio"] for c in wind_contrast["steps"]) >= 4.5, wind_contrast
+        assert wind_contrast["steps"][0]["bg"] == wind_contrast["blue"]
+        assert wind_contrast["steps"][-1]["bg"] == wind_contrast["red"]
+        assert len({tuple(c["bg"]) for c in wind_contrast["steps"]}) == 31
         for width in (1440, 768, 390, 320):
             page.set_viewport_size({"width": width, "height": 1000})
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (theme, width)
@@ -87,7 +121,7 @@ with sync_playwright() as p:
                 table.evaluate("el => el.scrollLeft = el.scrollWidth")
                 assert table.evaluate("el => el.scrollLeft > 0")
                 table.evaluate("el => el.scrollLeft = 0")
-        report.append({"theme": theme, "contrast": contrast})
+        report.append({"theme": theme, "contrast": contrast, "wind_contrast": wind_contrast})
     page.reload(wait_until="networkidle")
     assert page.locator("html").get_attribute("data-theme") == "light"
     page.locator(".hour").nth(6).click()

@@ -24,7 +24,10 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 - Day classifications, model windows, sunrise/noon/sunset, hourly veto reasons.
 - Twelve lightweight server-rendered SVG charts and exact per-hour source values.
 - Wind-by-altitude table: 700/800/850/925 hPa, gusts and 10 m wind against local
-  forecast hours, with direction, speed bands and horizontal scrolling on mobile.
+  forecast hours, with direction and horizontal scrolling on mobile. The cell
+  heatmap runs from blue at zero through cyan and amber to red at/above the site's
+  configured limit for that row (31 shades). Each row shows its red threshold;
+  missing speeds stay grey. Colours use unrounded values, not a safety verdict.
   Direction arrows point downwind; the small compass label states the wind's
   origin. Calm and unavailable directions do not acquire an arrow.
 - Unified plot tooltips show every series at the selected hour, including wind

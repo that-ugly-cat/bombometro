@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 import forecast
 import web
-from charts import day_charts, segments, wind_table
+from charts import day_charts, segments, wind_table, wind_color
 from core import SITE_PRESETS, run_pipeline
 from forecast import ForecastCache, ForecastError, build_report, make_site
 
@@ -265,7 +265,7 @@ def test_slow_fetch_does_not_block_other_cached_selection(sample, site):
 def test_wind_table_levels_direction_and_speed(sample, site):
     report = build_report(site, sample["forecast"], sample["pressure"])
     hours = report["hours"][6:21]
-    rows = wind_table(hours)
+    rows = wind_table(hours, site)
     assert [r["label"] for r in rows] == ["700 hPa", "800 hPa", "850 hPa", "925 hPa", "Gusts", "10 m wind"]
     assert all(len(r["cells"]) == 15 for r in rows)
     assert rows[0]["cells"][0]["speed"] == hours[0]["raw"]["wind_speed_700hPa"]
@@ -274,14 +274,30 @@ def test_wind_table_levels_direction_and_speed(sample, site):
     assert not rows[4]["cells"][0]["has_direction"]
 
 
-def test_wind_table_preserves_calm_and_unknown_separately():
+def test_wind_table_preserves_calm_and_unknown_separately(site):
     rows = wind_table([{"raw": {"wind_speed_700hPa": 0, "wind_direction_700hPa": 0,
-                               "wind_speed_850hPa": 15}}])
-    assert rows[0]["cells"][0] == {"speed": 0, "direction": 0, "compass": "N", "band": "low", "has_direction": True}
+                               "wind_speed_850hPa": 15}}], site)
+    assert rows[0]["cells"][0] == {"speed": 0, "direction": 0, "compass": "N", "color_class": "wind-heat wind-range-0 wind-mix-0", "has_direction": True}
     assert rows[1]["cells"][0]["speed"] is None
-    assert rows[1]["cells"][0]["band"] == "unknown"
+    assert rows[1]["cells"][0]["color_class"] == "wind-unknown"
     assert rows[2]["cells"][0]["compass"] is None
-    assert rows[2]["cells"][0]["band"] == "moderate"
+    assert rows[2]["cells"][0]["color_class"] == "wind-heat wind-range-1 wind-mix-5"
+
+
+@pytest.mark.parametrize("speed,expected", [(None, "wind-unknown"), (0, "wind-heat wind-range-0 wind-mix-0"),
+    (10, "wind-heat wind-range-1 wind-mix-5"), (19.99, "wind-heat wind-range-2 wind-mix-9"),
+    (20, "wind-heat wind-range-2 wind-mix-10"), (100, "wind-heat wind-range-2 wind-mix-10")])
+def test_wind_heat_scale_endpoints(speed, expected):
+    assert wind_color(speed, 20) == expected
+
+
+def test_wind_heat_scale_uses_each_rows_configured_limit(site):
+    hours = [{"raw": {"wind_speed_700hPa": 25, "wind_speed_925hPa": 25, "wind_gusts_10m": 25}}]
+    rows = wind_table(hours, site)
+    assert [r["limit"] for r in rows] == [60, 35, 30, 25, 28, 20]
+    assert rows[3]["cells"][0]["color_class"] == wind_color(25, 25)
+    assert rows[0]["cells"][0]["color_class"] != rows[3]["cells"][0]["color_class"]
+    assert rows[4]["cells"][0]["color_class"] == wind_color(25, 28)
 
 
 def test_tooltip_values_match_plots_and_distinguish_veto(sample, site):

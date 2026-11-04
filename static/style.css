@@ -5,6 +5,7 @@
   --accent: #63b3ed; --good: #84d8b2; --warning: #f1c77c; --danger: #ff9a9a;
   --good-bg: #1c3330; --warning-bg: #342c20; --danger-bg: #362329; --focus: #91caff;
   --c1: #77c6ff; --c2: #91d6ab; --c3: #e8cb77; --c4: #f59ca3; --c5: #c4a7ff; --c6: #b2bbc8;
+  --wind-blue: #70b9f3; --wind-cyan: #65cbd3; --wind-amber: #f0c56d; --wind-red: #f08087; --wind-ink: #122031;
 }
 :root[data-theme="light"] {
   color-scheme: light;
@@ -13,6 +14,7 @@
   --accent: #164d91; --good: #1c6548; --warning: #79500d; --danger: #a52b39;
   --good-bg: #e8f4ec; --warning-bg: #faf1df; --danger-bg: #fcebee; --focus: #164d91;
   --c1: #185a9e; --c2: #286e49; --c3: #8b640b; --c4: #b33345; --c5: #7545b1; --c6: #596777;
+  --wind-blue: #c2e3ff; --wind-cyan: #aee9eb; --wind-amber: #ffe099; --wind-red: #ffa9ae; --wind-ink: #122031;
 }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 80px; }
@@ -131,13 +133,20 @@ dt { color: var(--muted); }dd { margin: 0; }
 .wind-arrow { display: block; width: 24px; height: 24px; }
 .wind-arrow path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .wind-compass { font-size: 9px; }
-.wind-low { background: var(--good-bg); color: var(--good); }
-.wind-moderate { background: var(--raised); color: var(--text); }
-.wind-strong { background: var(--warning-bg); color: var(--warning); }
-.wind-high { background: var(--danger-bg); color: var(--danger); }
+.wind-heat { background: var(--wind-from); background: color-mix(in srgb, var(--wind-from), var(--wind-to) var(--wind-mix)); color: var(--wind-ink); }
+.wind-range-0 { --wind-from: var(--wind-blue); --wind-to: var(--wind-cyan); }
+.wind-range-1 { --wind-from: var(--wind-cyan); --wind-to: var(--wind-amber); }
+.wind-range-2 { --wind-from: var(--wind-amber); --wind-to: var(--wind-red); }
+.wind-mix-0 { --wind-mix: 0%; }.wind-mix-1 { --wind-mix: 10%; }
+.wind-mix-2 { --wind-mix: 20%; }.wind-mix-3 { --wind-mix: 30%; }
+.wind-mix-4 { --wind-mix: 40%; }.wind-mix-5 { --wind-mix: 50%; }
+.wind-mix-6 { --wind-mix: 60%; }.wind-mix-7 { --wind-mix: 70%; }
+.wind-mix-8 { --wind-mix: 80%; }.wind-mix-9 { --wind-mix: 90%; }
+.wind-mix-10 { --wind-mix: 100%; }
 .wind-unknown { background: var(--bg); color: var(--muted); }
-.wind-bands { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 10px; margin-top: 12px; color: var(--muted); }
-.wind-bands > span { padding: 3px 7px; border-radius: 4px; }
+.wind-scale { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 10px; margin-top: 16px; color: var(--muted); }
+.wind-scale-ramp { width: 150px; height: 10px; border-radius: 3px; background: linear-gradient(to right, var(--wind-blue), var(--wind-cyan), var(--wind-amber), var(--wind-red)); }
+.wind-missing-key { padding: 3px 7px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .hourly-section { margin-top: 32px; }.hourly-section > .section-heading { margin-bottom: 16px; }
 .hour-detail { margin-bottom: 8px; padding: 14px 18px; scroll-margin-top: 75px; }

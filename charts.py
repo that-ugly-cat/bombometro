@@ -15,21 +15,30 @@ WIND_LEVELS = (
 )
 
 
-def wind_table(hours):
+def wind_color(speed, limit):
+    """Thirty bounded colour steps; the red endpoint starts at the row's limit."""
+    if speed is None:
+        return "wind-unknown"
+    step = math.floor(max(0, min(speed / limit, 1)) * 30)
+    segment = min(step // 10, 2)
+    return f"wind-heat wind-range-{segment} wind-mix-{step - segment * 10}"
+
+
+def wind_table(hours, site):
     """High-to-low pressure levels, with missing speed and direction kept distinct."""
     rows = []
     for label, altitude, level in WIND_LEVELS:
+        limit = (site.gust_max_kmh if level is None else site.launch_wind_max_kmh
+                 if level == "10m" else getattr(site, f"wind_{level[:-3]}_max_kmh"))
         cells = []
         for hour in hours:
             raw = hour["raw"]
             speed = raw.get(f"wind_speed_{level}" if level else "wind_gusts_10m")
             direction = raw.get(f"wind_direction_{level}") if level else None
-            band = ("unknown" if speed is None else "low" if speed < 15 else
-                    "moderate" if speed < 25 else "strong" if speed < 35 else "high")
             cells.append({"speed": speed, "direction": direction,
                           "compass": wind_dir_label(direction) if direction is not None else None,
-                          "band": band, "has_direction": level is not None})
-        rows.append({"label": label, "altitude": altitude, "cells": cells})
+                          "color_class": wind_color(speed, limit), "has_direction": level is not None})
+        rows.append({"label": label, "altitude": altitude, "limit": limit, "cells": cells})
     return rows
 
 
