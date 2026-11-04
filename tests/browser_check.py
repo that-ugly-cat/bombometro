@@ -94,6 +94,16 @@ with sync_playwright() as p:
         for width in (1440, 768, 390, 320):
             page.set_viewport_size({"width": width, "height": 1000})
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (theme, width)
+            expected_label_width = 88 if width <= 760 else 145
+            first_column = page.locator(".wind-table tr > th:first-child")
+            assert first_column.evaluate_all("""(els, expected) => els.every(el =>
+                Math.abs(el.getBoundingClientRect().width - expected) < 1 &&
+                el.scrollWidth <= el.clientWidth + 1)""", expected_label_width), (theme, width)
+            scroll_area = page.locator(".table-wrap")
+            before_scroll = first_column.first.bounding_box()["x"]
+            scroll_area.evaluate("el => el.scrollLeft = 150")
+            assert abs(first_column.first.bounding_box()["x"] - before_scroll) <= 2
+            scroll_area.evaluate("el => el.scrollLeft = 0")
             for index in (9, 10):
                 assert page.locator(".chart-card").nth(index).locator(".y-label").evaluate_all("""els => els.every(el => {
                     const label=el.getBoundingClientRect(),svg=el.ownerSVGElement.getBoundingClientRect();

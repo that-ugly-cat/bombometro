@@ -121,3 +121,15 @@ null/negative spread. The live Chromium suite passes in both themes at four widt
 tooltips still select the correct hour after plot margins changed. Verified all
 altitude tick labels fit inside their SVG at 1440/390/320 px and inspected the
 freezing-level, dual-axis and verdict-card screenshots.
+
+## Follow-up: compact mobile wind labels
+
+4 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Measured the sticky altitude column at 145 px on both desktop and mobile. Below
+761 px it is now 88 px (39% narrower), with wrapped labels and unchanged font
+sizes. The desktop width remains 145 px. No altitude or reference limit is hidden.
+The extended live browser suite passes in both themes at 1440/768/390/320 px:
+all seven first-column cells have the expected width, no label overflows, the
+column remains pinned while scrolling, and the page does not widen. Inspected
+the 390 px table screenshot. Existing tooltip, axis and heatmap checks also pass.
