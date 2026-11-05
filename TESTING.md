@@ -153,3 +153,30 @@ all-zero, sub-hPa, missing and empty pressure series; shared altitude labels; wi
 direction retention; and the rendered zero line. The live Chromium suite passes
 in both themes at 1440/768/390/320 px, including tooltip row-fit checks for the
 longer labels. Inspected the mobile touch tooltip and visible foehn zero reference.
+
+## Follow-up: regime icon family
+
+5 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Added ten local SVG symbols: inactive, blue thermals, cumulus, capped, stable
+window, short window, no qualifying window, technical, foehn and unclassified.
+Names/descriptions live in `regimes.py`; aliases resolve there. The crossed-clock
+variant applies only to the engine's `short` tag without a qualifying window.
+No source score or summary is changed.
+
+Day-card and timeline icon controls are siblings of their navigation links, not
+nested buttons. Hover/focus shows a viewport-bounded explanation; click/tap pins
+it, a second activation, outside click/tap or Escape dismisses it. Screen-reader
+labels carry the full meaning, and an always-available guide lists all symbols.
+Hourly evidence explains its symbol when expanded; chart tooltips combine the
+icon with its name and explanation. Inactive and missing data remain distinct.
+
+**108 automated tests pass**, covering aliases, invalid codes, the no-window
+variant, SVG symbol coverage, accessible names and the complete guide. The live
+Chromium suite passes in dark/light at 1440/768/390/320 px, including actual SVG
+rendering, hover/keyboard dismissal, viewport fit and unchanged day/hour navigation.
+Touch-enabled checks confirm that tapping a day or hour icon opens its explanation
+without navigating, and outside tap closes it. Corrected hover reopening after a
+resize and a queued scroll event during automatic focus scrolling. Existing chart,
+heatmap, axis, mobile-table and contrast checks still pass. Inspected the desktop
+icon key, live forecast and mobile chart tooltip screenshots.

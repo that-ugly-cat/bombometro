@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="inactive" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="3"/></symbol>
+  <symbol id="blue" viewBox="0 0 24 24"><path d="M5 20c-4-5 4-7 0-12M2 11l3-4 3 4M12 20c-4-5 4-7 0-15M9 8l3-4 3 4M19 20c-4-5 4-7 0-12M16 11l3-4 3 4"/></symbol>
+  <symbol id="cumulus" viewBox="0 0 24 24"><path d="M6 12a3 3 0 0 1-1-6 4 4 0 0 1 7-2 4 4 0 0 1 7 3 2.5 2.5 0 0 1-1 5ZM12 22v-7m-3 3 3-3 3 3"/></symbol>
+  <symbol id="capped" viewBox="0 0 24 24"><path d="M3 5h18M3 8h18M12 21c-5-4 4-6 0-10m-3 3 3-3 3 3"/></symbol>
+  <symbol id="stable" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2M12 1a11 11 0 1 1-9.53 5.5" stroke-width="2"/></symbol>
+  <symbol id="short" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2M12 1a11 11 0 0 1 9.53 5.5" stroke-width="2"/></symbol>
+  <symbol id="no-window" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2M3 3l18 18"/></symbol>
+  <symbol id="technical" viewBox="0 0 24 24"><path d="M12 3 22 21H2ZM12 9v5m0 3v.5"/></symbol>
+  <symbol id="foehn" viewBox="0 0 24 24"><path d="M2 21 10 7l8 14M2 5h7c6 0 5 11 13 11m-3-3 3 3-3 3M1 10h4"/></symbol>
+  <symbol id="unclassified" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-dasharray="2 3"/><path d="M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 4m0 3v.5"/></symbol>
+</svg>

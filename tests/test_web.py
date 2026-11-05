@@ -459,3 +459,52 @@ def test_foehn_zero_reference_is_rendered(client):
     assert text.count('class="grid-line zero-reference"') == 1
     assert 'class="axis-label y-label zero-label"' in text
     assert "0 hPa reference" in text
+
+
+@pytest.mark.parametrize("code,key", [("off", "inactive"), ("inactive", "inactive"),
+    ("cap", "capped"), ("capped", "capped"), ("blue", "blue"), ("cumulus", "cumulus"),
+    ("stable", "stable"), ("short", "short"), ("technical", "technical"),
+    ("foehn", "foehn"), ("no-data", "unclassified"), (None, "unclassified"),
+    ('<script>', "unclassified")])
+def test_regime_symbols_have_safe_keys_and_meaning(code, key):
+    from regimes import regime_info
+    info = regime_info(code)
+    assert info["key"] == key
+    assert info["label"] and info["description"]
+
+
+def test_no_window_has_a_distinct_clock_without_changing_the_engine(client, sample, monkeypatch):
+    from regimes import regime_info
+    assert regime_info("short", False)["key"] == "no-window"
+    assert regime_info("short", True)["key"] == "short"
+    assert regime_info("foehn", False)["key"] == "foehn"
+    sample["forecast"]["hourly"]["wind_gusts_10m"] = [80] * 24
+    monkeypatch.setattr(web, "cache", ForecastCache(
+        fetcher=lambda s: (sample["forecast"], sample["pressure"])))
+    response = client.get("/app")
+    assert 'data-regime="no-window"' in response.text
+    assert 'data-regime="short"' not in response.text
+
+
+def test_every_regime_has_an_svg_symbol_and_guide_entry(client):
+    from regimes import REGIMES
+    from xml.etree import ElementTree as ET
+    response = client.get("/static/regimes.svg")
+    assert response.status_code == 200
+    root = ET.fromstring(response.text)
+    symbols = root.findall('{http://www.w3.org/2000/svg}symbol')
+    assert {s.attrib["id"] for s in symbols} == set(REGIMES)
+    assert len({ET.tostring(s) for s in symbols}) == 10
+    guide = client.get("/guide").text
+    assert 'id="regime-symbols"' in guide
+    assert guide.count('class="regime-key-entry"') == 10
+    for label, description in REGIMES.values():
+        assert label in guide
+
+
+def test_icon_controls_expose_names_without_javascript(client):
+    text = client.get("/app").text
+    assert 'aria-describedby="regime-help"' in text
+    assert 'id="regime-help"' in text
+    assert 'data-regime-label="' in text and 'data-regime-description="' in text
+    assert '/guide#regime-symbols' in text

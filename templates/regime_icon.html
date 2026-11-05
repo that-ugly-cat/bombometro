@@ -1,0 +1,8 @@
+{% macro symbol(info) -%}
+<svg class="regime-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/static/regimes.svg?v={{ asset_version }}#{{ info.key }}"/></svg>
+{%- endmacro %}
+
+{% macro badge(code, has_window=true, extra_class='') -%}
+{% set info = regime_info(code, has_window) %}
+<button type="button" class="regime-badge regime-{{ info.key }} {{ extra_class }}" aria-label="{{ info.label }}. {{ info.description }}" aria-describedby="regime-help" aria-expanded="false" data-regime="{{ info.key }}" data-regime-label="{{ info.label }}" data-regime-description="{{ info.description }}">{{ symbol(info) }}</button>
+{%- endmacro %}

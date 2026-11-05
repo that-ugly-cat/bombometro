@@ -17,7 +17,7 @@ CONTRAST = """() => {
       .reduce((s,n,i)=>s+n*[.2126,.7152,.0722][i],0);
   }
   const result = [];
-  for (const selector of ['h1', '.eyebrow', '.day-date', '.day-window', '.day-card strong',
+  for (const selector of ['h1', '.eyebrow', '.day-date', '.day-window', '.day-verdict',
       '.verdict', '.summary-copy', '.hour.blocked', '.hour.marginal', '.hour.promising',
       '.chart-note', '.legend', '.btn-primary', '.control-note', '.provenance', '.unit']) {
     const el = document.querySelector(selector);
@@ -79,6 +79,8 @@ with sync_playwright() as p:
     assert page.locator(".wind-table tbody td").count() == 90
     assert page.locator(".wind-table-card").evaluate("el => el.nextElementSibling.id === 'hourly-details'")
     assert page.locator(".day-card .regime-badge").count() == 5
+    assert page.locator(".day-card a button, .hour a button").count() == 0
+    assert page.locator("button[data-regime] use").evaluate_all("els => els.every(el => el.getBBox().height > 0)")
     assert page.locator(".verdict-face").count() > 0
     foehn = page.locator(".chart-card").nth(3)
     assert foehn.locator(".zero-label").text_content() == "0"
@@ -118,6 +120,24 @@ with sync_playwright() as p:
             assert page.locator(".chart-card").nth(9).locator(".right-axis").count() == 5
             assert page.locator(".chart-card").nth(9).locator(".secondary-line").count() > 0
             page.screenshot(path=str(OUTPUT / f"forecast-{theme}-{width}.png"), full_page=True)
+            badge = page.locator(".day-card button[data-regime]").first
+            badge.hover()
+            help_box = page.locator("#regime-help")
+            assert help_box.is_visible(), (theme, width, errors)
+            assert help_box.locator("strong").inner_text() == badge.get_attribute("data-regime-label")
+            help_bounds = help_box.bounding_box()
+            assert help_bounds["x"] >= 0 and help_bounds["x"] + help_bounds["width"] <= width
+            before_url = page.url
+            badge.focus()
+            badge.press("Enter")
+            assert help_box.is_visible() and page.url == before_url
+            badge.press("Enter")
+            assert not help_box.is_visible()
+            badge.press("Enter")
+            assert help_box.is_visible()
+            badge.press("Escape")
+            assert not help_box.is_visible()
+            badge.evaluate("el => el.blur()")
             if width in (1440, 320):
                 for i in range(12):
                     card = page.locator(".chart-card").nth(i)
@@ -133,7 +153,7 @@ with sync_playwright() as p:
                     assert tip.is_visible(), (theme, width, i)
                     assert tip.locator(".tooltip-heading").inner_text().startswith("11:00")
                     assert tip.locator(".tooltip-row b").all_text_contents() == [r["value"] for r in expected["readings"]]
-                    assert tip.locator(".tooltip-regime").inner_text() == "Thermal regime: " + expected["regime"]
+                    assert tip.locator(".tooltip-regime").inner_text() == expected["regime_info"]["label"] + ". " + expected["regime_info"]["description"]
                     bounds = tip.bounding_box()
                     assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width
                     assert tip.locator(".tooltip-row").evaluate_all("els => els.every(el => el.scrollWidth <= el.clientWidth + 1)")
@@ -153,14 +173,14 @@ with sync_playwright() as p:
         report.append({"theme": theme, "contrast": contrast, "wind_contrast": wind_contrast})
     page.reload(wait_until="networkidle")
     assert page.locator("html").get_attribute("data-theme") == "light"
-    page.locator(".hour").nth(6).click()
+    page.locator(".hour-link").nth(6).click()
     assert page.locator("#hour-12").get_attribute("open") is not None
     assert page.locator("#hour-12 .raw-grid").is_visible()
-    day = page.locator(".day-card").nth(1)
+    day = page.locator(".day-card .day-link").nth(1)
     target = day.get_attribute("href")
     day.click()
     page.wait_for_url(BASE + target, wait_until="networkidle")
-    assert page.locator(".day-card.selected").get_attribute("href") == target
+    assert page.locator(".day-card.selected .day-link").get_attribute("href") == target
     page.select_option('select[name="site"]', "Cavallaria")
     page.locator('button[type="submit"]').click()
     page.wait_for_url("**/app?site=Cavallaria&model=icon_eu", wait_until="networkidle", timeout=90000)
@@ -168,6 +188,9 @@ with sync_playwright() as p:
     assert "Grappa /" not in page.locator(".configuration").inner_text()
     page.goto(BASE + "/guide", wait_until="networkidle")
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert page.locator(".regime-key-entry").count() == 10
+    assert page.locator(".regime-key-entry use").evaluate_all("els => els.every(el => el.getBBox().height > 0)")
+    page.locator(".regime-key-grid").screenshot(path=str(OUTPUT / "regime-icon-key.png"))
     page.goto(BASE + "/", wait_until="networkidle")
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors, errors
@@ -176,6 +199,19 @@ with sync_playwright() as p:
     touch = touch_context.new_page()
     touch.on("pageerror", lambda error: errors.append(str(error)))
     touch.goto(BASE + "/app", wait_until="networkidle")
+    for selector in (".day-card button[data-regime]", ".hour-regime"):
+        badge = touch.locator(selector).first
+        before_url = touch.url
+        badge.tap()
+        assert touch.locator("#regime-help").is_visible()
+        assert touch.url == before_url
+        assert badge.get_attribute("aria-expanded") == "true"
+        badge.tap()
+        assert not touch.locator("#regime-help").is_visible()
+        badge.tap()
+        assert touch.locator("#regime-help").is_visible()
+        touch.locator(".page-heading").tap()
+        assert not touch.locator("#regime-help").is_visible()
     wind_card = touch.locator(".chart-card").nth(2)
     wind_svg = wind_card.locator(".chart")
     wind_svg.scroll_into_view_if_needed()

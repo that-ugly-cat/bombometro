@@ -14,7 +14,7 @@
   </svg>
   <div class="chart-tooltip" id="chart-tooltip-{{ chart_index }}" role="tooltip" hidden></div>
   </div>
-  <script type="application/json" class="chart-hover-data">{{ {'unit':chart.unit, 'hours':chart.hover, 'left':chart.left, 'right':chart.right, 'secondary':chart.secondary}|tojson }}</script>
+  <script type="application/json" class="chart-hover-data">{{ {'unit':chart.unit, 'hours':chart.hover, 'left':chart.left, 'right':chart.right, 'secondary':chart.secondary, 'regime_sprite':'/static/regimes.svg?v=' ~ asset_version}|tojson }}</script>
   <span class="sr-only chart-announcement" role="status" aria-live="polite"></span>
   {% if chart.note %}<p class="chart-note">{{ chart.note }}</p>{% endif %}
 </section>

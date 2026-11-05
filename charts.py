@@ -3,16 +3,7 @@
 import math
 
 from core import wind_dir_label
-
-
-REGIME_LABELS = {"cap": "capped", "capped": "capped", "blue": "blue thermals",
-                 "cumulus": "cumulus", "off": "inactive", "stable": "stable",
-                 "short": "short window", "technical": "technical", "foehn": "foehn",
-                 "unclassified": "unclassified"}
-
-
-def regime_label(code):
-    return REGIME_LABELS.get(code, "unclassified")
+from regimes import regime_info, regime_label
 
 
 PRESSURE_ALTITUDES = {925: 750, 850: 1500, 800: 1950, 700: 3000}
@@ -130,6 +121,7 @@ def chart(title, unit, hours, series, lower=0, upper=None, note="", directions=N
                              "unit": line["unit"]})
         hover.append({"time": hour["time"][11:16], "x": x(i), "readings": readings,
                       "regime": regime_label(hour.get("thermal_regime")) if hour["complete"] else "unclassified",
+                      "regime_info": regime_info(hour.get("thermal_regime") if hour["complete"] else None),
                       "status": ("Scoring inputs incomplete" if not hour["complete"] else
                                  "Veto: " + "; ".join(hour["veto_reasons"]) if hour.get("veto") else "")})
     return {

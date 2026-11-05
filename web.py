@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from charts import day_charts, wind_table, regime_label
+from regimes import REGIMES, regime_info
 from core import HOURLY_VARS, SITE_PRESETS, get_sun_times, wind_dir_label
 from forecast import MODELS, ForecastCache, ForecastError, make_site
 
@@ -43,7 +44,8 @@ def tone(verdict):
 
 templates.env.filters.update(fmt=fmt)
 templates.env.globals.update(asset_version=ASSET_VERSION, tone=tone,
-                             wind_dir_label=wind_dir_label, regime_label=regime_label)
+                             wind_dir_label=wind_dir_label, regime_label=regime_label,
+                             regime_info=regime_info, regimes=REGIMES)
 
 
 @app.middleware("http")

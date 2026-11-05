@@ -25,7 +25,7 @@ function openHour() {
 }
 window.addEventListener("hashchange", openHour);
 openHour();
-document.querySelectorAll('.hour[href^="#hour-"]').forEach(link => {
+document.querySelectorAll('.hour-link[href^="#hour-"]').forEach(link => {
   link.addEventListener("click", () => {
     const target = document.getElementById(link.hash.slice(1));
     if (target) target.open = true;
@@ -94,7 +94,16 @@ document.querySelectorAll(".chart-card").forEach(card => {
     }
     const regime = document.createElement("p");
     regime.className = "tooltip-regime";
-    regime.textContent = `Thermal regime: ${hour.regime}`;
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("class", "regime-icon");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", `${data.regime_sprite}#${hour.regime_info.key}`);
+    icon.append(use);
+    const explanation = document.createElement("span");
+    explanation.textContent = `${hour.regime_info.label}. ${hour.regime_info.description}`;
+    regime.append(icon, explanation);
     tooltip.append(regime);
     tooltip.hidden = false;
     crosshair.setAttribute("x1", hour.x);
@@ -142,3 +151,69 @@ document.addEventListener("pointerdown", event => {
   if (!event.target.closest(".chart-card") && dismissActiveChart) dismissActiveChart();
 });
 window.addEventListener("resize", () => { if (dismissActiveChart) dismissActiveChart(); });
+
+// Regime controls are siblings of navigation links, never buttons inside links.
+const regimeHelp = document.getElementById("regime-help");
+if (regimeHelp) {
+  let active = null;
+  let pinned = false;
+  let hideTimer;
+  let anchorTop = 0;
+  let anchorLeft = 0;
+  function hideRegime() {
+    clearTimeout(hideTimer);
+    if (active) active.setAttribute("aria-expanded", "false");
+    active = null;
+    pinned = false;
+    regimeHelp.hidden = true;
+  }
+  function showRegime(button) {
+    clearTimeout(hideTimer);
+    if (dismissActiveChart) dismissActiveChart();
+    if (active && active !== button) hideRegime();
+    active = button;
+    regimeHelp.querySelector("strong").textContent = button.dataset.regimeLabel;
+    regimeHelp.querySelector("p").textContent = button.dataset.regimeDescription;
+    regimeHelp.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    const box = button.getBoundingClientRect();
+    anchorTop = box.top;
+    anchorLeft = box.left;
+    const left = Math.max(12, Math.min(innerWidth - regimeHelp.offsetWidth - 12, box.left));
+    const below = box.bottom + 6;
+    const top = below + regimeHelp.offsetHeight <= innerHeight - 12 ? below :
+      Math.max(12, box.top - regimeHelp.offsetHeight - 6);
+    regimeHelp.style.left = `${left}px`;
+    regimeHelp.style.top = `${top}px`;
+  }
+  function delayedHide() {
+    if (!pinned && !active?.matches(":focus-visible")) hideTimer = setTimeout(hideRegime, 150);
+  }
+  document.querySelectorAll("button[data-regime]").forEach(button => {
+    button.addEventListener("pointerenter", event => {
+      if (event.pointerType !== "touch") showRegime(button);
+    });
+    button.addEventListener("pointermove", event => {
+      if (event.pointerType !== "touch" && (active !== button || regimeHelp.hidden)) showRegime(button);
+    });
+    button.addEventListener("pointerleave", delayedHide);
+    button.addEventListener("focus", () => showRegime(button));
+    button.addEventListener("blur", () => { if (!pinned) hideRegime(); });
+    button.addEventListener("click", () => {
+      if (active === button && pinned) hideRegime();
+      else { showRegime(button); pinned = true; }
+    });
+  });
+  regimeHelp.addEventListener("pointerenter", () => clearTimeout(hideTimer));
+  regimeHelp.addEventListener("pointerleave", delayedHide);
+  document.addEventListener("pointerdown", event => {
+    if (!event.target.closest("button[data-regime], #regime-help")) hideRegime();
+  });
+  document.addEventListener("keydown", event => { if (event.key === "Escape") hideRegime(); });
+  window.addEventListener("resize", hideRegime);
+  window.addEventListener("scroll", () => {
+    if (!active) return;
+    const box = active.getBoundingClientRect();
+    if (Math.abs(box.top - anchorTop) > 1 || Math.abs(box.left - anchorLeft) > 1) hideRegime();
+  }, {passive: true});
+}

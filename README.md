@@ -22,8 +22,11 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 
 - Grappa and Cavallaria; five original model choices; up to five forecast days.
 - Day classifications, model windows, sunrise/noon/sunset, hourly veto reasons.
-- SVG verdict faces and inherited day/regime badges; hourly thermal regimes in
-  the timeline, chart tooltips and evidence. No new meteorological classification.
+- SVG verdict faces and a matching set of regime icons in day cards, the timeline,
+  chart tooltips and hourly evidence. Hover, focus or tap a regime control for its
+  name and explanation; `/guide#regime-symbols` lists the whole set. A crossed clock
+  distinguishes the engine's `short` fallback when no qualifying window exists.
+  There is no new meteorological classification or scoring change.
 - Twelve lightweight server-rendered SVG charts and exact per-hour source values.
 - T−Td includes a dashed derived cloudbase with a right-hand AGL metre axis;
   freezing-level ticks use readable whole metres instead of scientific notation.
