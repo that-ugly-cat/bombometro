@@ -1,20 +1,37 @@
 services:
   bombometro:
-    build: .
+    image: "bombometro:${BOMBOMETRO_REVISION:?Set BOMBOMETRO_REVISION to the reviewed full Git commit}"
+    build:
+      context: .
+      args:
+        VCS_REF: "${BOMBOMETRO_REVISION:?Set BOMBOMETRO_REVISION}"
     container_name: bombometro
     restart: unless-stopped
-    # Bound to loopback, not 0.0.0.0: the gate's design rests on the bind.
+    # Only the host loopback port is published. Caddy is the public entry point.
     ports:
-      - "127.0.0.1:8502:8502"
-    env_file:
-      - .env
+      - "127.0.0.1:${BOMBOMETRO_PORT:-8502}:8502"
+    environment:
+      APP_MODE: public
+      PUBLIC_HOST: "${PUBLIC_HOST:?Set PUBLIC_HOST to the public DNS hostname}"
+      APP_REVISION: "${BOMBOMETRO_REVISION:?Set BOMBOMETRO_REVISION}"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 384m
+    cpus: 1.0
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
 
-# Subnet fissata il 19 set 2026. I gateway delle reti Docker finiscono in
-# BORANT_TRUSTED_PROXY, e senza un pin dipendono dall'ordine di creazione:
-# bastava una risalita in ordine diverso perche' quindici app iniziassero a
-# rifiutare le identita' del gate con un 503 che sembra un guasto di auth.
-# Questa app non usa il gate oggi, ma la subnet si fissa lo stesso: il costo e'
-# una riga, e il giorno che la usasse il difetto sarebbe gia' chiuso.
+# Retained from the existing deployment. Check for conflicts before installing.
+# A side-by-side candidate must use `docker run`, not a second copy of this subnet.
 networks:
   default:
     ipam:

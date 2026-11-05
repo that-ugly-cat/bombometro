@@ -20,6 +20,7 @@
 {% endif %}
 {% if error %}<div class="flash" role="alert">{{ error }}</div>{% endif %}
 {% if report %}
+<script type="application/json" id="forecast-availability">{{ {'total_hours':report.hours|length, 'complete_hours':report.hours|selectattr('complete')|list|length, 'daytime_complete_hours':report.summaries.values()|map(attribute='complete_hours')|list}|tojson }}</script>
 <div class="provenance"><span>{{ site.latitude }}° N, {{ site.longitude }}° E · {{ site.timezone }}</span><span>Retrieved {{ fetched.strftime('%d %b %Y · %H:%M %Z') }} <a href="/guide#data" aria-label="About forecast retrieval times">(about)</a></span></div>
 <nav class="day-grid" aria-label="Forecast days">
   {% for day in report.days %}{% set s = report.summaries[day] %}

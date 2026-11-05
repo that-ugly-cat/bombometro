@@ -1,4 +1,4 @@
-# Bombometro · Borant web preview
+# Bombometro · Borant web edition
 
 A FastAPI/Jinja interface for the existing Bombometro paragliding forecast engine.
 It uses public Open-Meteo data and the original `core.py` and `sites.json` without
@@ -53,15 +53,26 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
   The first source hour cannot be scored without its previous-hour trend inputs.
 - Clear pressure source (ICON EU for every model), retrieval time and grid metadata.
 
+## Deployment modes
+
+Default `APP_MODE=lab` is the workshop preview behind its external login. The owner
+approved **anonymous public access** on 5 November 2026. The prepared public mode
+requires `PUBLIC_HOST` and the full reviewed `APP_REVISION`; it has bounded request
+admission, a non-root/read-only container and a loopback-only host port behind Caddy.
+All routes are public; no Borant ID registration or account is required. The lab
+preview is not itself a production deployment. Follow [DEPLOY.md](DEPLOY.md), including
+candidate image tests and rollback. The workshop could not access Docker's daemon,
+so **container build/run acceptance remains for the deployment operator**.
+
+The free weather endpoint assumes non-commercial operation without ads or
+subscriptions. See [Open-Meteo's terms](https://open-meteo.com/en/terms).
+
 ## Deliberately not included
 
 AI advice, paid requests, user accounts, site editing, database persistence,
-internationalisation, Borant ID integration and production deployment. The UI is
-entirely English, with no placeholder language selector. A lab proxy supplies
-authentication. **Do not expose this app directly to the public internet.**
-
-The existing upstream compose file belongs to the old deployment. It is not a
-deployment recipe for this preview. See [DEPLOY.md](DEPLOY.md).
+internationalisation or Borant ID integration. The UI is entirely English, with
+no placeholder language selector. Production remains an operator action, not an
+effect of opening the preview or receiving its bundle.
 
 ## Data and model limitations
 

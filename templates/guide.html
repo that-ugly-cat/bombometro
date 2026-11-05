@@ -25,7 +25,8 @@
     <li>CAPE, cloud cover and humidity are proxies, not a reliable storm-warning service. The score does not use lightning potential, even when that optional field is returned.</li>
     <li>The old advisor legend reverses the risk direction, and the original manual’s final interpretation table reverses risk and foehn. This interface follows the code: higher risk and foehn scores are worse. The AI advisor is not connected.</li>
   </ul>
-  <h2>What this lab version leaves out</h2><p>No AI calls, saved profiles, site editing, standalone login, or production deployment. The preview is protected by the lab’s external login and is not designed for direct public exposure. No personal records are stored; the only browser preference is the colour theme.</p>
+  <h2>Access and privacy</h2><p>No AI calls, saved profiles, site editing or application accounts. {% if app_mode == 'lab' %}This workshop preview is behind the lab’s external login.{% else %}This read-only forecast service is intentionally public: no login is required. Public does not mean the weather heuristics have been validated.{% endif %} The application stores no personal records or visitor identifiers and runs no analytics. The only browser preference is the colour theme, stored locally. Requests for weather data go from the server to Open-Meteo and contain fixed flying-site coordinates, not your location. Hosting and proxy operators may process network metadata under their own logging policies.</p>
+  <p>The service limits concurrent forecast requests and its upstream request budget. Busy periods may return a temporary error. Forecasts are not a warning service and availability is not guaranteed. Open-Meteo attribution is in the footer.</p>
   <p class="muted">Engine: <a href="https://github.com/that-ugly-cat/bombometro">that-ugly-cat/bombometro</a>, baseline ffe3a58. Web adaptation: Ono · dedalo · gpt-6-astra-fast.</p>
 </article>
 {% endblock %}

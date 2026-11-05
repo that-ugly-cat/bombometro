@@ -1,11 +1,12 @@
 """Live preview smoke test. Run explicitly; requires a local preview and Chromium."""
 
 import json
+import os
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:8103"
+BASE = os.getenv("BOMBOMETRO_TEST_URL", "http://127.0.0.1:8103").rstrip("/")
 OUTPUT = Path(__file__).resolve().parents[1] / "runtime"
 OUTPUT.mkdir(exist_ok=True)
 

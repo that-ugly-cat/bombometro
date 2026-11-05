@@ -1,8 +1,9 @@
 """Public weather retrieval and completeness checks around the unchanged core."""
 
 import math
+from collections import deque
 from datetime import datetime, timedelta, timezone
-from threading import Lock
+from threading import Lock, BoundedSemaphore
 from time import monotonic
 
 import requests
@@ -40,6 +41,29 @@ class ForecastError(Exception):
     """Stable error code, never an upstream response or credential-bearing URL."""
 
 
+class UpstreamBudget:
+    """Per-process transport-call ceilings; not a claim about provider billing units."""
+
+    def __init__(self, clock=monotonic):
+        self.clock = clock
+        self.calls = deque()
+        self.lock = Lock()
+
+    def take(self):
+        with self.lock:
+            now = self.clock()
+            while self.calls and self.calls[0] <= now - 86400:
+                self.calls.popleft()
+            if (len(self.calls) >= 2000 or
+                    sum(t > now - 3600 for t in self.calls) >= 300 or
+                    sum(t > now - 60 for t in self.calls) >= 30):
+                raise ForecastError("upstream_budget")
+            self.calls.append(now)
+
+
+UPSTREAM_BUDGET = UpstreamBudget()
+
+
 def number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
@@ -74,6 +98,7 @@ def read_hourly(payload, variables):
 
 
 def request_json(params):
+    UPSTREAM_BUDGET.take()
     try:
         response = requests.get(API_URL, params=params, timeout=(5, 20))
         response.raise_for_status()
@@ -155,28 +180,41 @@ def build_report(site, payload, pressure):
 class ForecastCache:
     """Bounded by configured site/model keys; coalesce fetches and back off failures."""
 
-    def __init__(self, fetcher=fetch_public, clock=monotonic):
+    def __init__(self, fetcher=fetch_public, clock=monotonic, lock_timeout=2):
         self.fetcher = fetcher
         self.clock = clock
         self.entries = {}
         self.locks = {(name, model): Lock() for name in SITE_PRESETS for model in MODELS}
+        self.lock_timeout = lock_timeout
+        self.fetch_slots = BoundedSemaphore(2)
 
     def get(self, site):
         if site.name not in SITE_PRESETS or site.model not in MODELS:
             raise ForecastError("invalid_selection")
         key = (site.name, site.model)
-        with self.locks[key]:
+        lock = self.locks[key]
+        if not lock.acquire(timeout=self.lock_timeout):
+            raise ForecastError("busy")
+        try:
             saved = self.entries.get(key)
             if saved and saved[0] > self.clock():
                 if isinstance(saved[1], ForecastError):
                     raise saved[1]
                 return saved[1]
+            if not self.fetch_slots.acquire(blocking=False):
+                raise ForecastError("busy")
             try:
-                payload, pressure = self.fetcher(site)
-                report = build_report(site, payload, pressure)
-            except (ForecastError, KeyError, TypeError, ValueError, AttributeError) as exc:
-                error = exc if isinstance(exc, ForecastError) else ForecastError("invalid_data")
-                self.entries[key] = (self.clock() + 60, error)
-                raise error from None
+                try:
+                    payload, pressure = self.fetcher(site)
+                    report = build_report(site, payload, pressure)
+                except (ForecastError, KeyError, TypeError, ValueError, AttributeError) as exc:
+                    error = exc if isinstance(exc, ForecastError) else ForecastError("invalid_data")
+                    cooldown = 300 if str(error) in {"rate_limited", "upstream_budget"} else 60
+                    self.entries[key] = (self.clock() + cooldown, error)
+                    raise error from None
+            finally:
+                self.fetch_slots.release()
             self.entries[key] = (self.clock() + TTL, report)
             return report
+        finally:
+            lock.release()

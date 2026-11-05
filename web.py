@@ -1,29 +1,42 @@
-"""Lab-only web presentation. No credentials, accounts or paid model calls."""
+"""Read-only forecast presentation. No credentials, accounts or paid model calls."""
 
 import hashlib
+import base64
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from charts import day_charts, wind_table, regime_label
 from regimes import REGIMES, regime_info
 from site_details import SITE_DETAILS
+from settings import Settings
+from traffic import PublicGuard
 from core import HOURLY_VARS, SITE_PRESETS, get_sun_times, wind_dir_label
 from forecast import MODELS, ForecastCache, ForecastError, make_site
 
 ROOT = Path(__file__).parent
-app = FastAPI(title="Bombometro lab", docs_url=None, redoc_url=None, openapi_url=None)
+settings = Settings.from_env()
+app = FastAPI(title="Bombometro", docs_url=None, redoc_url=None, openapi_url=None,
+              redirect_slashes=False)
+if settings.mode == "public":
+    app.add_middleware(PublicGuard)
+    app.add_middleware(TrustedHostMiddleware,
+                       allowed_hosts=[settings.public_host, "localhost", "127.0.0.1"],
+                       www_redirect=False)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 templates = Jinja2Templates(directory=ROOT / "templates")
 cache = ForecastCache()
 ASSET_VERSION = hashlib.sha256(b"".join(
     p.read_bytes() for p in sorted((ROOT / "static").glob("*")) if p.is_file()
 )).hexdigest()[:12]
+THEME_BOOTSTRAP = (ROOT / "static/theme-init.js").read_text()
+THEME_HASH = base64.b64encode(hashlib.sha256(THEME_BOOTSTRAP.encode()).digest()).decode()
 ERRORS = {
     "unreachable": "Open-Meteo could not be reached. No substitute data is shown. Try again in a minute.",
     "provider_error": "Open-Meteo rejected this request. The selected model may not cover this site or these variables. Try another model.",
@@ -31,6 +44,8 @@ ERRORS = {
     "invalid_data": "The weather response could not be verified. No score has been calculated.",
     "invalid_selection": "Choose one of the available sites and models.",
     "invalid_day": "That date is outside the returned forecast. Choose a day shown below.",
+    "busy": "Another forecast is being fetched. Please try again shortly; already cached selections remain available.",
+    "upstream_budget": "The weather-request budget is temporarily exhausted. Cached forecasts remain available; please try later.",
 }
 
 
@@ -47,10 +62,11 @@ templates.env.filters.update(fmt=fmt)
 templates.env.globals.update(asset_version=ASSET_VERSION, tone=tone,
                              wind_dir_label=wind_dir_label, regime_label=regime_label,
                              regime_info=regime_info, regimes=REGIMES, site_details=SITE_DETAILS)
+templates.env.globals.update(app_mode=settings.mode, theme_bootstrap=THEME_BOOTSTRAP)
 
 
 @app.middleware("http")
-async def private_preview(request, call_next):
+async def response_security(request, call_next):
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -58,10 +74,11 @@ async def private_preview(request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
     response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; "
+        f"default-src 'self'; script-src 'self' 'sha256-{THEME_HASH}'; style-src 'self'; "
         "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; "
         "base-uri 'self'; form-action 'self'"
     )
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     return response
 
 
@@ -76,8 +93,14 @@ async def invalid_request(request, exc):
 
 
 @app.get("/healthz")
-def health():
-    return {"status": "ok", "service": "bombometro", "mode": "lab"}
+async def health():
+    return {"status": "ok", "service": "bombometro", "mode": settings.mode,
+            "revision": settings.revision}
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots():
+    return "User-agent: *\nDisallow: /\n"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -102,8 +125,10 @@ def workspace(request: Request, site: str = Query("Grappa", max_length=40),
     try:
         report = cache.get(config)
     except ForecastError as exc:
-        return render(request, "app.html", status=503, **{
+        response = render(request, "app.html", status=503, **{
             **context, "error": ERRORS.get(str(exc), ERRORS["invalid_data"])})
+        response.headers["Retry-After"] = "2" if str(exc) == "busy" else "60"
+        return response
     selected = day if day in report["days"] else report["days"][0]
     hours = [h for h in report["hours"] if h["time"].startswith(selected)
              and 6 <= int(h["time"][11:13]) <= 20]

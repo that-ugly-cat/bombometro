@@ -229,3 +229,49 @@ north/east/southeast/northwest and 360°. Restarted the preview to discard the o
 in-memory site configuration and forecast cache. The live Chromium suite passes,
 including the visible 180°–270° disclosure and 225° ± 45° configuration, in
 addition to the existing responsive, tooltip and navigation checks.
+
+## Public deployment preparation
+
+5 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+The owner selected anonymous public access. **149 automated tests pass** after
+adding explicit mode/host/revision validation, read-only request admission,
+per-process upstream budgets, bounded cache fetches, hashed theme-bootstrap CSP,
+container/proxy recipes and deployment acceptance checks. Existing scoring and
+site presets are unchanged by this step.
+
+A fresh production-only virtual environment (21 packages) imported and ran the
+application without Streamlit, OpenAI, pytest or browser dependencies. A separate
+loopback process used public mode and the container's uvicorn worker/concurrency
+arguments. Its test revision was forty zeroes, explicitly a pre-commit candidate.
+The smoke check returned 119/120 complete source hours and five fully complete
+daytime windows for each of Grappa, Cavallaria and Meduno. The missing first hour
+is the deliberately unavailable previous-hour trend, not fabricated weather.
+
+The entire Chromium suite passed against this public-mode process at
+1440/768/390/320 px in both themes, including persisted theme under the stricter
+CSP, source notes, tooltips, regimes, wind table, data axes and navigation. A live
+50-request concurrent burst produced 20 HTTP 200 and 30 HTTP 503; a subsequent
+health request returned 200 in 0.0023 s. A 30-request sequential burst produced
+20 HTTP 200 and 10 HTTP 429. These are limited functional load checks, not a
+capacity guarantee or DDoS test. The observed process RSS after these checks was
+about 73 MiB; Docker memory enforcement was not tested.
+
+`docker compose config --format json` verified public environment, loopback
+publication, read-only filesystem, capability removal and absence of env-file or
+volume injection. Caddy 2.11.2 accepted and validated the generated host block;
+the generator also passes `caddy fmt`. This does not validate the production host's
+full Caddyfile or obtain/test its TLS certificate.
+
+**Docker build/runtime remains untested and blocks cutover.** The workshop daemon
+rejected access with permission denied; no privilege workaround was attempted.
+DEPLOY.md and the handover require the operator to build and stage the image,
+inspect user/binds/limits/image contents, verify the old deployment and preserve
+its matching rollback configuration before switching the live service.
+
+Bastian (gpt-6.1-sol) reviewed the public-access/security/rollback preparation.
+He found that rendered empty charts could pass the initial smoke check. Fixed:
+acceptance now consumes completeness metadata and requires at least 15 complete
+source hours and one 15/15 daytime day for each site. Zero-data, 14/15-only and
+missing-metadata cases fail tests. His read-only follow-up accepted this correction;
+he did not claim runtime or container verification.
