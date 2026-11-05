@@ -1,0 +1,20 @@
+<section class="card chart-card">
+  <div class="section-heading"><h3>{{ chart.title }}</h3><span class="unit">{{ chart.unit }}{% if chart.secondary %} / {{ chart.secondary_unit }}{% endif %}</span></div>
+  <div class="legend">{% for line in chart.lines %}<span><i class="swatch c{{ line.color }} {% if line.secondary %}swatch-dashed{% endif %}"></i>{{ line.label }}{% if chart.secondary %} ({{ 'right' if line.secondary else 'left' }}){% endif %}</span>{% endfor %}{% if chart.centered_zero %}<span><i class="swatch zero-key"></i>0 hPa reference</span>{% endif %}</div>
+  <div class="chart-interaction">
+  <svg class="chart" viewBox="0 0 752 185" role="group" tabindex="0" aria-label="{{ chart.title }}. Use left and right arrow keys for hourly values, Escape to dismiss. Exact values also in hourly details below." aria-describedby="chart-tooltip-{{ chart_index }}">
+    {% for tick in chart.ticks %}<line class="grid-line {% if tick.zero %}zero-reference{% endif %}" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/><text class="axis-label y-label {% if tick.zero %}zero-label{% endif %}" x="{{ chart.left - 12 }}" y="{{ tick.y + 6 }}" text-anchor="end">{{ tick.value }}</text>{% endfor %}
+    {% for tick in chart.right_ticks %}<text class="axis-label y-label right-axis c3" x="{{ chart.right + 12 }}" y="{{ tick.y + 6 }}" text-anchor="start">{{ tick.value }}</text>{% endfor %}
+    {% for label in chart.labels %}<text class="axis-label" x="{{ label.x }}" y="179" text-anchor="middle">{{ label.text }}</text>{% endfor %}
+    {% for line in chart.lines %}<g class="c{{ line.color }}">
+      {% for segment in line.segments %}<polyline class="data-line {% if line.secondary %}secondary-line{% elif chart.secondary %}dual-primary-line{% endif %}" points="{{ segment }}"/>{% endfor %}
+      {% for p in line.points %}{% if not line.secondary %}<circle class="data-point" cx="{{ p.x }}" cy="{{ p.y }}" r="3"/>{% endif %}{% endfor %}
+    </g>{% endfor %}
+    <line class="chart-crosshair" x1="{{ chart.left }}" x2="{{ chart.left }}" y1="25" y2="155" visibility="hidden"/>
+  </svg>
+  <div class="chart-tooltip" id="chart-tooltip-{{ chart_index }}" role="tooltip" hidden></div>
+  </div>
+  <script type="application/json" class="chart-hover-data">{{ {'unit':chart.unit, 'hours':chart.hover, 'left':chart.left, 'right':chart.right, 'secondary':chart.secondary, 'regime_sprite':'/static/regimes.svg?v=' ~ asset_version}|tojson }}</script>
+  <span class="sr-only chart-announcement" role="status" aria-live="polite"></span>
+  {% if chart.note %}<p class="chart-note">{{ chart.note }}</p>{% endif %}
+</section>

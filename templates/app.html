@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "verdict_face.html" import face %}
+{% from "regime_icon.html" import badge, symbol %}
+{% block title %}{{ site.name }} forecast{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">THE FLYING DAY / DECODED</p><h1>Forecast explorer</h1></div><span class="badge">Open-Meteo · forecast data</span></div>
+<form class="card controls" method="get" action="/app" id="forecast-form">
+  <label>Flying site<select name="site">{% for name in sites %}<option value="{{ name }}" {% if name == site.name %}selected{% endif %}>{{ site_details[name].name if name in site_details else name }}</option>{% endfor %}</select></label>
+  <label>Forecast model<select name="model">{% for key, name in models.items() %}<option value="{{ key }}" {% if key == site.model %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <button class="btn btn-primary" type="submit">Load forecast <span aria-hidden="true">→</span></button>
+  <p class="control-note" id="load-status" role="status">Up to 5 days · cached for 30 min</p>
+</form>
+{% if site_info %}
+<aside class="notice site-warning" role="note"><strong>{{ site_info.name }}.</strong> {{ site_info.warning }} <a href="#site-sources">Site notes and sources</a>.</aside>
+<details class="card site-sources" id="site-sources"><summary>{{ site_info.name }} · sourced facts & assumptions</summary>
+  <p class="muted">Sources checked {{ site_info.checked_on }}. This is a workshop preset, not a locally validated flight assessment.</p>
+  <dl>{% for label, note in site_info.notes %}<dt>{{ label }}</dt><dd>{{ note }}</dd>{% endfor %}</dl>
+  <ul>{% for source in site_info.sources %}<li><a href="{{ source.url }}" rel="noreferrer">{{ source.label }}</a></li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% if error %}<div class="flash" role="alert">{{ error }}</div>{% endif %}
+{% if report %}
+<script type="application/json" id="forecast-availability">{{ {'total_hours':report.hours|length, 'complete_hours':report.hours|selectattr('complete')|list|length, 'daytime_complete_hours':report.summaries.values()|map(attribute='complete_hours')|list}|tojson }}</script>
+<div class="provenance"><span>{{ site.latitude }}° N, {{ site.longitude }}° E · {{ site.timezone }}</span><span>Retrieved {{ fetched.strftime('%d %b %Y · %H:%M %Z') }} <a href="/guide#data" aria-label="About forecast retrieval times">(about)</a></span></div>
+<nav class="day-grid" aria-label="Forecast days">
+  {% for day in report.days %}{% set s = report.summaries[day] %}
+  <div class="card day-card {% if day == selected_day %}selected{% endif %}">
+    <span class="day-date">{{ day[8:10] }} / {{ day[5:7] }}<span>{{ day[:4] }}</span></span>
+    <a class="day-verdict day-link {{ tone(s.verdict) }}" href="/app?{{ {'site':site.name, 'model':site.model, 'day':day}|urlencode }}" {% if day == selected_day %}aria-current="date"{% endif %} aria-label="{{ day }}: {{ s.verdict }}">{{ face(s.verdict) }}<span>{{ s.verdict|capitalize }}</span></a>
+    {{ badge(s.tag, s.best_window is not none) }}
+    <span class="day-score">{{ (s.mean_fly_score if s.best_window else none)|fmt(0) }}<small>/ 100</small></span>
+    <span class="day-window">{% if s.best_window %}{{ s.best_window[0] }} – {{ s.best_window[1] }}{% elif s.mean_fly_score is none %}{{ s.complete_hours }}/15 complete hours{% else %}No qualifying window{% endif %}</span>
+  </div>{% endfor %}
+</nav>
+<section class="card day-overview">
+  <div><p class="eyebrow">{{ site.name|upper }} / {{ selected_day }}</p><h2 class="verdict {{ tone(summary.verdict) }}">{{ face(summary.verdict) }}<span>{{ summary.verdict|capitalize }}</span></h2>
+    {{ badge(summary.tag, summary.best_window is not none) }}
+    <p class="summary-copy">{% if summary.mean_fly_score is none %}Only {{ summary.complete_hours }} of 15 daytime hours have all scoring inputs. No daily verdict or best window is assigned.{% elif summary.best_window %}Best model window <strong>{{ summary.best_window[0] }}–{{ summary.best_window[1] }}</strong> · {{ summary.best_window_duration_h }} hourly samples{% else %}No hourly sequence meets the engine’s window criteria. Inspect the limits and individual hours below.{% endif %}</p>
+    {% if sun %}<p class="sun-times">Sunrise <b>{{ sun.sunrise.strftime('%H:%M') }}</b><span>/</span>Solar noon <b>{{ sun.solar_noon.strftime('%H:%M') }}</b><span>/</span>Sunset <b>{{ sun.sunset.strftime('%H:%M') }}</b></p>{% endif %}
+  </div>
+  <div class="summary-score"><span class="eyebrow">{% if summary.best_window %}WINDOW MEAN{% else %}NO WINDOW{% endif %}</span><strong>{{ (summary.mean_fly_score if summary.best_window else none)|fmt(0) }}<small>/100</small></strong><span>{% if summary.best_window %}Inherited fly score{% else %}No mean to report{% endif %}</span></div>
+</section>
+<aside class="notice compact"><strong>Model classification, not flight clearance.</strong> The summary covers 06:00–20:00, including past and dark hours. Higher risk / foehn scores mean worse conditions. <a href="/guide">Read the limitations.</a></aside>
+<section class="card timeline-card">
+  <div class="section-heading"><h2>Hour by hour</h2><span class="muted">Local time · select an hour for evidence</span></div>
+  <div class="timeline">
+    {% for h in hours %}<div class="hour {% if not h.complete %}unknown{% elif h.veto %}blocked{% elif h.fly_score >= 58 %}promising{% else %}marginal{% endif %}"><a class="hour-link" href="#hour-{{ h.time[11:13] }}" aria-label="{{ h.time[11:16] }}: {% if not h.complete %}incomplete data{% elif h.veto %}veto, {{ h.veto_reasons|join(', ') }}{% else %}score {{ h.fly_score }}{% endif %}">
+      <span>{{ h.time[11:16] }}</span><strong>{% if not h.complete %}—{% elif h.veto %}×{% else %}{{ h.fly_score|fmt(0) }}{% endif %}</strong><small>{% if not h.complete %}unknown{% elif h.veto %}{{ h.veto_type }}{% else %}score{% endif %}</small>
+      </a>{{ badge(h.get('thermal_regime') if h.complete else none, extra_class='hour-regime') }}
+    </div>{% endfor %}
+  </div>
+  <p class="chart-note">× = hard veto · — = missing inputs · a score is not a probability of safe flight. Hover, focus or tap a regime icon for its meaning. <a href="/guide#regime-symbols">Icon key</a>.</p>
+</section>
+<details class="card configuration"><summary>Site limits & data provenance <span class="muted">{{ site.name }} / {{ models[site.model] }}</span></summary>
+  <div class="config-grid"><div><h3>Inherited veto thresholds</h3><dl>
+    <dt>Wind-from sector</dt><dd>{{ site.launch_dir_center_deg|fmt(0) }}° ± {{ site.launch_dir_tolerance_deg|fmt(0) }}°</dd>
+    <dt>10 m wind</dt><dd>&gt; {{ site.launch_wind_max_kmh|fmt(0) }} km/h, after rounding</dd>
+    <dt>Gusts</dt><dd>≥ {{ site.gust_max_kmh|fmt(0) }} km/h, after rounding</dd>
+    <dt>925 hPa wind</dt><dd>&gt; {{ site.wind_925_max_kmh|fmt(0) }} km/h, after rounding</dd>
+    <dt>Rain / snow</dt><dd>&gt; {{ site.precip_max_mm }} mm / &gt; {{ site.snow_max_cm }} cm</dd>
+    <dt>Low cloud</dt><dd>≥ {{ site.cloud_low_max_pct|fmt(0) }}%</dd>
+    <dt>Pressure gradient</dt><dd>&gt; {{ (site.foehn_delta_p_max_hpa * 1.2)|fmt }} hPa</dd>
+  </dl></div><div><h3>Where the numbers come from</h3><p>Site forecast: {{ models[site.model] }}. Foehn reference pressures: <strong>ICON EU</strong>, regardless of the selected forecast model.</p><p>North: {{ site.foehn_north_name }}<br>South: {{ site.foehn_south_name }}</p><p>Returned model grid: {{ report.grid_latitude|fmt(3) }}°, {{ report.grid_longitude|fmt(3) }}° · elevation {{ report.grid_elevation|fmt(0) }} m AMSL. This is not a surveyed launch elevation.</p><p>The source may interpolate fields or stop early. Missing scoring inputs suppress the affected scores; optional diagnostics remain blank. A full day means 15 complete samples, not forecast certainty.</p></div></div>
+</details>
+<div class="section-heading chart-heading"><div><p class="eyebrow">UNDER THE SURFACE</p><h2>The forecast, unpacked</h2></div><a class="btn btn-small" href="#hourly-details">Exact values ↓</a></div>
+<p class="chart-help">Hover or tap a plot for hourly values. With a plot focused, use ← / → to change hour and Escape to dismiss.</p>
+<div class="chart-grid">{% for chart in charts %}{% set chart_index = loop.index %}{% include "chart.html" %}{% endfor %}</div>
+<section class="card wind-table-card" aria-labelledby="wind-table-heading">
+  <div class="section-heading"><h2 id="wind-table-heading">Wind by altitude</h2><span class="muted">Arrows point downwind · speed in km/h</span></div>
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Hourly wind by altitude. Scroll horizontally for all hours.">
+    <table class="table wind-table">
+      <caption class="sr-only">{{ site.name }}, {{ selected_day }}. Local time {{ site.timezone }}. Wind direction and speed by pressure level; gusts have no separate direction.</caption>
+      <thead><tr><th scope="col">Level / approx. altitude</th>{% for h in hours %}<th scope="col">{{ h.time[11:16] }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in wind_rows %}<tr><th scope="row">{{ row.label }}<small>{{ row.altitude }}</small><small>Red ≥ {{ row.limit|fmt(0) }} km/h</small></th>
+        {% for cell in row.cells %}<td class="{{ cell.color_class }}">
+          {% if cell.has_direction %}<span class="wind-direction" {% if cell.direction is not none and cell.speed != 0 %}title="From {{ cell.compass }} ({{ cell.direction|fmt(0) }}°); arrow points downwind"{% endif %}>
+            {% if cell.speed == 0 %}<span class="wind-compass">Calm</span>
+            {% elif cell.direction is not none %}<svg class="wind-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 V20 M6 14 L12 20 L18 14" transform="rotate({{ cell.direction|fmt }} 12 12)"/></svg><span class="wind-compass">{{ cell.compass }}</span><span class="sr-only">, from {{ cell.direction|fmt(0) }} degrees; arrow points downwind</span>
+            {% else %}<span class="wind-compass">—</span><span class="sr-only"> direction unavailable</span>{% endif %}
+          </span>{% endif %}
+          <strong>{{ cell.speed|fmt(0) }}</strong><span class="sr-only">{% if cell.speed is none %}speed unavailable{% else %} km/h{% endif %}</span>
+        </td>{% endfor %}
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="wind-scale"><span>0 km/h</span><span class="wind-scale-ramp" aria-hidden="true"></span><span>At / above row limit</span><span class="wind-missing-key">Grey = unavailable</span></div>
+  <p class="chart-note">Colour follows speed relative to each level’s configured limit, shown at left. Upper-level references are not all hard vetoes; blue does not mean safe. Values are rounded for display, colours use the unrounded speed.</p>
+  <p class="chart-note">Arrows show where the wind blows; the small compass label shows where it comes from (N ↓, E ←, S ↑, W →). Calm wind has no arrow. Pressure-level altitudes are approximate metres above sea level, not above the launch; a level can lie below local terrain. — means unavailable, not calm. On narrow screens, scroll the table sideways.</p>
+</section>
+<section id="hourly-details" class="hourly-section">
+  <div class="section-heading"><h2>Hourly evidence</h2><span class="muted">Scores, reasons and source values</span></div>
+  {% for h in hours %}<details class="card hour-detail" id="hour-{{ h.time[11:13] }}">
+    {% set info = regime_info(h.get('thermal_regime') if h.complete else none) %}
+    <summary><b>{{ h.time[11:16] }}</b><span class="badge {% if not h.complete %}muted{% elif h.veto %}danger{% else %}accent{% endif %}">{% if not h.complete %}Incomplete{% elif h.veto %}Veto · {{ h.veto_type }}{% else %}Score {{ h.fly_score|fmt }}{% endif %}</span><span class="regime-inline" role="img" aria-label="{{ info.label }}. {{ info.description }}" title="{{ info.label }}. {{ info.description }}">{{ symbol(info) }}</span><span class="hour-reason">{% if not h.complete %}{{ h.missing|length }} missing inputs{% elif h.veto %}{{ h.veto_reasons|join(' · ') }}{% else %}risk {{ h.risk_score|fmt(0) }} · foehn {{ h.foehn_score|fmt(0) }}{% endif %}</span></summary>
+    <p class="regime-explanation"><strong>{{ info.label }}.</strong> {{ info.description }}</p>
+    {% if not h.complete %}<div class="flash">No score: {{ h.missing|join(', ') }}.</div>{% else %}
+    <div class="component-grid">{% for label, key in [('Launch','launch'),('Upper wind','upper_wind'),('Thermal','thermal'),('Risk · higher is worse','risk'),('Foehn · higher is worse','foehn')] %}<div><h3>{{ label }} <span>{{ h[key ~ '_score']|fmt }}</span></h3><p>{{ h[key ~ '_reasons']|join(' · ') }}</p></div>{% endfor %}</div>
+    <p class="calculation">Potential <b>{{ h.potential_score|fmt }}</b> · risk penalty {{ h.risk_penalty|fmt }} · foehn penalty {{ h.foehn_penalty|fmt }} · adjusted foehn {{ h.foehn_score_adj|fmt }} · estimated cloudbase <b>{{ h.cloudbase_estimate_m|fmt(0) }} m above model surface</b>.{% if h.veto %} Final score withheld because of the veto.{% endif %}</p>
+    {% endif %}
+    <h3 class="raw-heading">Source values <span class="muted">Wind km/h · direction degrees from north · temperature °C · humidity/cloud % · pressure hPa</span></h3>
+    <div class="raw-grid">{% for key in raw_keys %}<div><span>{{ key }}</span><strong>{{ h.raw.get(key)|fmt }}{% if 'wind_direction' in key and h.raw.get(key) is not none %} {{ wind_dir_label(h.raw[key]) }}{% endif %}</strong></div>{% endfor %}</div>
+    <p class="chart-note">Precipitation mm · snowfall cm · radiation W/m² · sunshine seconds/hour · CAPE and lightning potential J/kg · freezing level m AMSL. Lightning potential is displayed when supplied but is not used by the inherited score. — means unavailable.</p>
+  </details>{% endfor %}
+</section>
+<div id="regime-help" class="regime-help" role="tooltip" hidden><strong></strong><p></p></div>
+{% else %}
+<section class="card empty-state"><h2>No forecast to display</h2><p>The selected site and model are kept above. No cached expired forecast or demonstration values have been substituted.</p></section>
+{% endif %}
+{% endblock %}

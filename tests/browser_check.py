@@ -1,0 +1,246 @@
+"""Live preview smoke test. Run explicitly; requires a local preview and Chromium."""
+
+import json
+import os
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+BASE = os.getenv("BOMBOMETRO_TEST_URL", "http://127.0.0.1:8103").rstrip("/")
+OUTPUT = Path(__file__).resolve().parents[1] / "runtime"
+OUTPUT.mkdir(exist_ok=True)
+
+# Calculate contrast from computed DOM styles, walking to the first opaque ancestor.
+CONTRAST = """() => {
+  function rgb(value) { return (value.match(/[\\d.]+/g) || []).map(Number); }
+  function luminance(v) {
+    return v.slice(0,3).map(n => {n/=255;return n<=.04045?n/12.92:Math.pow((n+.055)/1.055,2.4)})
+      .reduce((s,n,i)=>s+n*[.2126,.7152,.0722][i],0);
+  }
+  const result = [];
+  for (const selector of ['h1', '.eyebrow', '.day-date', '.day-window', '.day-verdict',
+      '.verdict', '.summary-copy', '.hour.blocked', '.hour.marginal', '.hour.promising',
+      '.chart-note', '.legend', '.btn-primary', '.control-note', '.provenance', '.unit']) {
+    const el = document.querySelector(selector);
+    if (!el) continue;
+    let parent=el, background;
+    while(parent) {
+      const c=rgb(getComputedStyle(parent).backgroundColor);
+      if(c.length===3 || c[3]===1) {background=c;break;}
+      parent=parent.parentElement;
+    }
+    if(!background) throw new Error('No opaque background: '+selector);
+    const foreground=rgb(getComputedStyle(el).color);
+    const a=luminance(foreground),b=luminance(background);
+    const ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    result.push({selector,ratio:Math.round(ratio*100)/100});
+  }
+  return result;
+}"""
+
+WIND_CONTRAST = """() => {
+  const cell = document.querySelector('.wind-heat');
+  const original = cell.className;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
+  function rgb(css) {
+    ctx.clearRect(0,0,1,1); ctx.fillStyle=css; ctx.fillRect(0,0,1,1);
+    return Array.from(ctx.getImageData(0,0,1,1).data).slice(0,3);
+  }
+  function lum(v) {
+    return v.map(n=>{n/=255;return n<=.04045?n/12.92:Math.pow((n+.055)/1.055,2.4)})
+      .reduce((s,n,i)=>s+n*[.2126,.7152,.0722][i],0);
+  }
+  const result=[];
+  try {
+    for(let step=0;step<=30;step++) {
+      const range=Math.min(Math.floor(step/10),2);
+      cell.className=`wind-heat wind-range-${range} wind-mix-${step-range*10}`;
+      const style=getComputedStyle(cell), fg=rgb(style.color), bg=rgb(style.backgroundColor);
+      const a=lum(fg),b=lum(bg);
+      result.push({step,bg,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)});
+    }
+    const style=getComputedStyle(cell);
+    return {steps:result,blue:rgb(style.getPropertyValue('--wind-blue')),
+      red:rgb(style.getPropertyValue('--wind-red'))};
+  } finally { cell.className=original; }
+}"""
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 1000}, device_scale_factor=1)
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    response = page.goto(BASE + "/app", wait_until="networkidle", timeout=90000)
+    assert response.status == 200, page.locator(".flash").inner_text()
+    assert page.locator(".day-card").count() == 5
+    assert page.locator(".chart-card").count() == 12
+    assert page.locator(".wind-table tbody tr").count() == 6
+    assert page.locator(".wind-table tbody td").count() == 90
+    assert page.locator(".wind-table-card").evaluate("el => el.nextElementSibling.id === 'hourly-details'")
+    assert page.locator(".day-card .regime-badge").count() == 5
+    assert page.locator(".day-card a button, .hour a button").count() == 0
+    assert page.locator("button[data-regime] use").evaluate_all("els => els.every(el => el.getBBox().height > 0)")
+    assert page.locator(".verdict-face").count() > 0
+    foehn = page.locator(".chart-card").nth(3)
+    assert foehn.locator(".zero-label").text_content() == "0"
+    assert foehn.locator(".zero-reference").get_attribute("y1") == "90.0"
+    for index in (2, 7, 8):
+        labels = page.locator(".chart-card").nth(index).locator(".legend span").all_text_contents()
+        assert all("≈" in label and "m AMSL" in label for label in labels if "hPa" in label)
+    report = []
+    for theme in ("dark", "light"):
+        if page.locator("html").get_attribute("data-theme") != theme:
+            page.locator("#theme-toggle").click()
+        contrast = page.evaluate(CONTRAST)
+        assert all(c["ratio"] >= 4.5 for c in contrast), contrast
+        wind_contrast = page.evaluate(WIND_CONTRAST)
+        assert min(c["ratio"] for c in wind_contrast["steps"]) >= 4.5, wind_contrast
+        assert wind_contrast["steps"][0]["bg"] == wind_contrast["blue"]
+        assert wind_contrast["steps"][-1]["bg"] == wind_contrast["red"]
+        assert len({tuple(c["bg"]) for c in wind_contrast["steps"]}) == 31
+        for width in (1440, 768, 390, 320):
+            page.set_viewport_size({"width": width, "height": 1000})
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (theme, width)
+            expected_label_width = 88 if width <= 760 else 145
+            first_column = page.locator(".wind-table tr > th:first-child")
+            assert first_column.evaluate_all("""(els, expected) => els.every(el =>
+                Math.abs(el.getBoundingClientRect().width - expected) < 1 &&
+                el.scrollWidth <= el.clientWidth + 1)""", expected_label_width), (theme, width)
+            scroll_area = page.locator(".table-wrap")
+            before_scroll = first_column.first.bounding_box()["x"]
+            scroll_area.evaluate("el => el.scrollLeft = 150")
+            assert abs(first_column.first.bounding_box()["x"] - before_scroll) <= 2
+            scroll_area.evaluate("el => el.scrollLeft = 0")
+            for index in (9, 10):
+                assert page.locator(".chart-card").nth(index).locator(".y-label").evaluate_all("""els => els.every(el => {
+                    const label=el.getBoundingClientRect(),svg=el.ownerSVGElement.getBoundingClientRect();
+                    return label.left>=svg.left && label.right<=svg.right;
+                })"""), (theme, width, index)
+            assert page.locator(".chart-card").nth(9).locator(".right-axis").count() == 5
+            assert page.locator(".chart-card").nth(9).locator(".secondary-line").count() > 0
+            page.screenshot(path=str(OUTPUT / f"forecast-{theme}-{width}.png"), full_page=True)
+            badge = page.locator(".day-card button[data-regime]").first
+            badge.hover()
+            help_box = page.locator("#regime-help")
+            assert help_box.is_visible(), (theme, width, errors)
+            assert help_box.locator("strong").inner_text() == badge.get_attribute("data-regime-label")
+            help_bounds = help_box.bounding_box()
+            assert help_bounds["x"] >= 0 and help_bounds["x"] + help_bounds["width"] <= width
+            before_url = page.url
+            badge.focus()
+            badge.press("Enter")
+            assert help_box.is_visible() and page.url == before_url
+            badge.press("Enter")
+            assert not help_box.is_visible()
+            badge.press("Enter")
+            assert help_box.is_visible()
+            badge.press("Escape")
+            assert not help_box.is_visible()
+            badge.evaluate("el => el.blur()")
+            if width in (1440, 320):
+                for i in range(12):
+                    card = page.locator(".chart-card").nth(i)
+                    svg = card.locator(".chart")
+                    svg.scroll_into_view_if_needed()
+                    page.mouse.move(0, 0)
+                    box = svg.bounding_box()
+                    payload = json.loads(card.locator(".chart-hover-data").text_content())
+                    expected = payload["hours"][5]
+                    page.mouse.move(box["x"] + box["width"] * expected["x"] / 752,
+                                    box["y"] + box["height"] * 70 / 185)
+                    tip = card.locator(".chart-tooltip")
+                    assert tip.is_visible(), (theme, width, i)
+                    assert tip.locator(".tooltip-heading").inner_text().startswith("11:00")
+                    assert tip.locator(".tooltip-row b").all_text_contents() == [r["value"] for r in expected["readings"]]
+                    assert tip.locator(".tooltip-regime").inner_text() == expected["regime_info"]["label"] + ". " + expected["regime_info"]["description"]
+                    bounds = tip.bounding_box()
+                    assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width
+                    assert tip.locator(".tooltip-row").evaluate_all("els => els.every(el => el.scrollWidth <= el.clientWidth + 1)")
+                    svg.focus()
+                    svg.press("Home")
+                    svg.press("ArrowRight")
+                    assert tip.locator(".tooltip-heading").inner_text().startswith("07:00")
+                    svg.press("End")
+                    assert tip.locator(".tooltip-heading").inner_text().startswith("20:00")
+                    svg.press("Escape")
+                    assert not tip.is_visible()
+                    svg.evaluate("el => el.blur()")
+                table = page.locator(".table-wrap")
+                table.evaluate("el => el.scrollLeft = el.scrollWidth")
+                assert table.evaluate("el => el.scrollLeft > 0")
+                table.evaluate("el => el.scrollLeft = 0")
+        report.append({"theme": theme, "contrast": contrast, "wind_contrast": wind_contrast})
+    page.reload(wait_until="networkidle")
+    assert page.locator("html").get_attribute("data-theme") == "light"
+    page.locator(".hour-link").nth(6).click()
+    assert page.locator("#hour-12").get_attribute("open") is not None
+    assert page.locator("#hour-12 .raw-grid").is_visible()
+    day = page.locator(".day-card .day-link").nth(1)
+    target = day.get_attribute("href")
+    day.click()
+    page.wait_for_url(BASE + target, wait_until="networkidle")
+    assert page.locator(".day-card.selected .day-link").get_attribute("href") == target
+    page.select_option('select[name="site"]', "Cavallaria")
+    page.locator('button[type="submit"]').click()
+    page.wait_for_url("**/app?site=Cavallaria&model=icon_eu", wait_until="networkidle", timeout=90000)
+    assert "CAVALLARIA" in page.locator(".day-overview").inner_text()
+    assert "Grappa /" not in page.locator(".configuration").inner_text()
+    page.select_option('select[name="site"]', "Meduno")
+    page.locator('button[type="submit"]').click()
+    page.wait_for_url("**/app?site=Meduno&model=icon_eu", wait_until="networkidle", timeout=90000)
+    assert "MEDUNO" in page.locator(".day-overview").inner_text()
+    assert "not locally calibrated" in page.locator(".site-warning").inner_text()
+    assert "180°–270°" in page.locator(".site-warning").inner_text()
+    assert "225° ± 45°" in page.locator(".configuration").text_content()
+    page.locator('a[href="#site-sources"]').click()
+    assert page.locator("#site-sources").get_attribute("open") is not None
+    assert "975 m" in page.locator("#site-sources").inner_text()
+    assert page.locator("#site-sources a").count() == 3
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.locator("#site-sources").screenshot(path=str(OUTPUT / "meduno-site-notes.png"))
+    page.goto(BASE + "/guide", wait_until="networkidle")
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert page.locator(".regime-key-entry").count() == 10
+    assert page.locator(".regime-key-entry use").evaluate_all("els => els.every(el => el.getBBox().height > 0)")
+    page.locator(".regime-key-grid").screenshot(path=str(OUTPUT / "regime-icon-key.png"))
+    page.goto(BASE + "/", wait_until="networkidle")
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert not errors, errors
+    touch_context = browser.new_context(viewport={"width": 390, "height": 844},
+                                        is_mobile=True, has_touch=True)
+    touch = touch_context.new_page()
+    touch.on("pageerror", lambda error: errors.append(str(error)))
+    touch.goto(BASE + "/app", wait_until="networkidle")
+    for selector in (".day-card button[data-regime]", ".hour-regime"):
+        badge = touch.locator(selector).first
+        before_url = touch.url
+        badge.tap()
+        assert touch.locator("#regime-help").is_visible()
+        assert touch.url == before_url
+        assert badge.get_attribute("aria-expanded") == "true"
+        badge.tap()
+        assert not touch.locator("#regime-help").is_visible()
+        badge.tap()
+        assert touch.locator("#regime-help").is_visible()
+        touch.locator(".page-heading").tap()
+        assert not touch.locator("#regime-help").is_visible()
+    wind_card = touch.locator(".chart-card").nth(2)
+    wind_svg = wind_card.locator(".chart")
+    wind_svg.scroll_into_view_if_needed()
+    box = wind_svg.bounding_box()
+    wind_payload = json.loads(wind_card.locator(".chart-hover-data").text_content())
+    touch.touchscreen.tap(box["x"] + box["width"] * wind_payload["hours"][6]["x"] / 752,
+                          box["y"] + box["height"] * 70 / 185)
+    assert wind_card.locator(".chart-tooltip").is_visible()
+    assert wind_card.locator(".tooltip-heading").inner_text().startswith("12:00")
+    touch.screenshot(path=str(OUTPUT / "wind-tooltip-touch.png"))
+    touch.locator(".chart-help").tap()
+    assert not wind_card.locator(".chart-tooltip").is_visible()
+    assert not errors, errors
+    touch_context.close()
+    browser.close()
+    (OUTPUT / "browser-results.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps({"browser": "Chromium", "themes": 2, "widths": [1440, 768, 390, 320],
+                      "console_errors": errors, "contrast": report}, indent=2))
