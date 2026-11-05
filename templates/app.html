@@ -5,11 +5,19 @@
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">THE FLYING DAY / DECODED</p><h1>Forecast explorer</h1></div><span class="badge">Open-Meteo · forecast data</span></div>
 <form class="card controls" method="get" action="/app" id="forecast-form">
-  <label>Flying site<select name="site">{% for name in sites %}<option value="{{ name }}" {% if name == site.name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <label>Flying site<select name="site">{% for name in sites %}<option value="{{ name }}" {% if name == site.name %}selected{% endif %}>{{ site_details[name].name if name in site_details else name }}</option>{% endfor %}</select></label>
   <label>Forecast model<select name="model">{% for key, name in models.items() %}<option value="{{ key }}" {% if key == site.model %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
   <button class="btn btn-primary" type="submit">Load forecast <span aria-hidden="true">→</span></button>
   <p class="control-note" id="load-status" role="status">Up to 5 days · cached for 30 min</p>
 </form>
+{% if site_info %}
+<aside class="notice site-warning" role="note"><strong>{{ site_info.name }}.</strong> {{ site_info.warning }} <a href="#site-sources">Site notes and sources</a>.</aside>
+<details class="card site-sources" id="site-sources"><summary>{{ site_info.name }} · sourced facts & assumptions</summary>
+  <p class="muted">Sources checked {{ site_info.checked_on }}. This is a workshop preset, not a locally validated flight assessment.</p>
+  <dl>{% for label, note in site_info.notes %}<dt>{{ label }}</dt><dd>{{ note }}</dd>{% endfor %}</dl>
+  <ul>{% for source in site_info.sources %}<li><a href="{{ source.url }}" rel="noreferrer">{{ source.label }}</a></li>{% endfor %}</ul>
+</details>
+{% endif %}
 {% if error %}<div class="flash" role="alert">{{ error }}</div>{% endif %}
 {% if report %}
 <div class="provenance"><span>{{ site.latitude }}° N, {{ site.longitude }}° E · {{ site.timezone }}</span><span>Retrieved {{ fetched.strftime('%d %b %Y · %H:%M %Z') }} <a href="/guide#data" aria-label="About forecast retrieval times">(about)</a></span></div>

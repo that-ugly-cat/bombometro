@@ -186,6 +186,17 @@ with sync_playwright() as p:
     page.wait_for_url("**/app?site=Cavallaria&model=icon_eu", wait_until="networkidle", timeout=90000)
     assert "CAVALLARIA" in page.locator(".day-overview").inner_text()
     assert "Grappa /" not in page.locator(".configuration").inner_text()
+    page.select_option('select[name="site"]', "Meduno")
+    page.locator('button[type="submit"]').click()
+    page.wait_for_url("**/app?site=Meduno&model=icon_eu", wait_until="networkidle", timeout=90000)
+    assert "MEDUNO" in page.locator(".day-overview").inner_text()
+    assert "not locally calibrated" in page.locator(".site-warning").inner_text()
+    page.locator('a[href="#site-sources"]').click()
+    assert page.locator("#site-sources").get_attribute("open") is not None
+    assert "975 m" in page.locator("#site-sources").inner_text()
+    assert page.locator("#site-sources a").count() == 3
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.locator("#site-sources").screenshot(path=str(OUTPUT / "meduno-site-notes.png"))
     page.goto(BASE + "/guide", wait_until="networkidle")
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert page.locator(".regime-key-entry").count() == 10

@@ -508,3 +508,63 @@ def test_icon_controls_expose_names_without_javascript(client):
     assert 'id="regime-help"' in text
     assert 'data-regime-label="' in text and 'data-regime-description="' in text
     assert '/guide#regime-symbols' in text
+
+
+def test_meduno_coordinates_match_the_published_launch_area():
+    site = make_site("Meduno", "icon_eu")
+    assert site.latitude == pytest.approx(46 + 13 / 60 + 49.93 / 3600, abs=0.000001)
+    assert site.longitude == pytest.approx(12 + 48 / 60 + 23.73 / 3600, abs=0.000001)
+    assert site.timezone == "Europe/Rome"
+    assert site.launch_dir_center_deg == 180
+    assert site.launch_dir_tolerance_deg == 45
+
+
+def test_meduno_inherited_limits_match_the_disclosure():
+    from dataclasses import asdict
+    grappa, meduno = (asdict(make_site(name, "icon_eu")) for name in ("Grappa", "Meduno"))
+    changed = {"name", "latitude", "longitude", "launch_dir_tolerance_deg", "foehn_north_name", "foehn_south_name"}
+    for key in grappa.keys() - changed:
+        assert grappa[key] == meduno[key], key
+    assert "not calibrated for Meduno" in meduno["foehn_north_name"]
+
+
+def test_cache_capacity_tracks_all_three_sites_and_models():
+    cache = ForecastCache()
+    assert len(SITE_PRESETS) == 3
+    assert len(cache.locks) == len(SITE_PRESETS) * len(forecast.MODELS) == 15
+    assert all(("Meduno", model) in cache.locks for model in forecast.MODELS)
+
+
+def test_meduno_is_selectable_and_discloses_sources_before_scores(client):
+    r = client.get("/app", params={"site": "Meduno", "model": "icon_eu"})
+    assert r.status_code == 200
+    assert '<option value="Meduno" selected>Meduno · Monte Valinis</option>' in r.text
+    assert r.text.index('class="notice site-warning"') < r.text.index('class="day-grid"')
+    for text in ("Experimental site preset", "not locally calibrated", "1,100 m", "975 m", "1,088 m",
+                 "no dedicated Bora/easterly-flow veto", "FlyCard", "LI-R427", "46.230536", "12.806592"):
+        assert text in r.text
+    for url in ("https://www.medunoinvolo.it/it/c/869321/il-monte-valinis",
+                "https://scuolaparapendioadventure.it/dovevoliamo",
+                "https://www.paraglidingmap.com/regions/meduno"):
+        assert url in r.text
+    assert "3 flying sites" in client.get("/").text
+    assert 'class="notice site-warning"' not in client.get("/app?site=Grappa").text
+
+
+def test_meduno_disclosure_survives_provider_failure(client, monkeypatch):
+    def fail(site): raise ForecastError("unreachable")
+    monkeypatch.setattr(web, "cache", ForecastCache(fetcher=fail))
+    r = client.get("/app?site=Meduno")
+    assert r.status_code == 503
+    assert "Experimental site preset" in r.text
+    assert "Site notes and sources" in r.text
+
+
+def test_meduno_sector_is_applied_by_the_unchanged_engine(sample):
+    from core import hard_veto
+    site = make_site("Meduno", "icon_eu")
+    row = {k: v[12] for k, v in sample["forecast"]["hourly"].items()}
+    row["wind_direction_10m"] = 0
+    assert "wind out of sector" in hard_veto(row, site)[2]
+    row["wind_direction_10m"] = 180
+    assert "wind out of sector" not in hard_veto(row, site)[2]

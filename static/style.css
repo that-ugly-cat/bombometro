@@ -115,6 +115,9 @@ select { display: block; width: 100%; min-height: 42px; margin-top: 6px; padding
 .hour.marginal { background: var(--warning-bg); color: var(--warning); border-color: var(--warning); }
 .hour.unknown { color: var(--muted); }
 .configuration { margin-top: 18px; padding: 15px 20px; }
+.site-sources { margin: 16px 0; font-size: 12px; scroll-margin-top: 110px; }
+.site-sources dl { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); }
+.site-sources ul { padding-left: 18px; }
 summary { font-size: 13px; font-weight: 550; }
 .configuration summary .muted { font-weight: 400; font-size: 11px; margin-left: 12px; }
 .config-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px; margin-top: 24px; font-size: 12px; }
@@ -239,4 +242,6 @@ code { background: var(--raised); padding: 2px 5px; border-radius: 3px; overflow
   .guide { padding: 20px; }.guide dl { grid-template-columns: minmax(0, 1fr); }.guide dt { margin-top: 10px; font-weight: 600; }
   .chart-card { padding: 16px 10px; }.landing-hero { padding-top: 28px; }.intro { font-size: 15px; }
   .landing-meta { gap: 12px; }.controls { padding: 16px; gap: 12px; }
+  .site-sources dl { grid-template-columns: minmax(0, 1fr); }
+  .site-sources dt { font-weight: 650; margin-top: 8px; }
 }

@@ -180,3 +180,34 @@ without navigating, and outside tap closes it. Corrected hover reopening after a
 resize and a queued scroll event during automatic focus scrolling. Existing chart,
 heatmap, axis, mobile-table and contrast checks still pass. Inspected the desktop
 icon key, live forecast and mobile chart tooltip screenshots.
+
+## Follow-up: experimental Meduno / Monte Valinis preset
+
+5 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+Added Meduno at the launch-area coordinates published by the municipality and
+Adventure school. The site-specific warning precedes results, including on an
+upstream error page. Expandable notes distinguish sourced coordinates, conflicting
+elevations, an assumed south-facing sector and inherited/unvalidated thresholds
+and pressure references. Landing-page site count now derives from configuration;
+cache capacity naturally expands to 15 site/model combinations.
+
+**115 automated tests pass**, including DMS conversion, inherited parameters,
+dynamic cache keys, site selection, disclosure order, source URLs, network-error
+disclosure and sector behaviour. The upstream comparison test now also exercises
+Meduno. A Git comparison confirmed that `core.py` and both existing site entries
+are unchanged.
+
+Live ICON EU response: 120 hourly records, five days, 15 complete daytime hours
+per day. Returned grid coordinates/elevation: 46.25, 12.8125, 983 m; these are
+provider metadata, not a resolution of the published launch-height disagreement.
+All five model selections return HTTP 200, 12 charts and the experimental warning;
+this does not mean every model has all scoring inputs. The live Chromium suite
+passes, including Meduno selection through the actual form and opening the source
+notes (three cited links) at 320 px without horizontal overflow. Inspected
+the rendered mobile notes. Runtime service health passes and logs show no errors.
+
+Bastian (gpt-6.1-sol) reviewed the preset, disclosures and the three source pages
+read-only: no concrete concealed limitation found. His review did not validate
+meteorological thresholds, certify local permissions, or run tests. Those limits
+remain explicit in the application and README.

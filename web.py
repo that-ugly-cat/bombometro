@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from charts import day_charts, wind_table, regime_label
 from regimes import REGIMES, regime_info
+from site_details import SITE_DETAILS
 from core import HOURLY_VARS, SITE_PRESETS, get_sun_times, wind_dir_label
 from forecast import MODELS, ForecastCache, ForecastError, make_site
 
@@ -45,7 +46,7 @@ def tone(verdict):
 templates.env.filters.update(fmt=fmt)
 templates.env.globals.update(asset_version=ASSET_VERSION, tone=tone,
                              wind_dir_label=wind_dir_label, regime_label=regime_label,
-                             regime_info=regime_info, regimes=REGIMES)
+                             regime_info=regime_info, regimes=REGIMES, site_details=SITE_DETAILS)
 
 
 @app.middleware("http")
@@ -81,7 +82,7 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 def landing(request: Request):
-    return render(request, "landing.html")
+    return render(request, "landing.html", site_count=len(SITE_PRESETS))
 
 
 @app.get("/guide", response_class=HTMLResponse)
@@ -97,7 +98,7 @@ def workspace(request: Request, site: str = Query("Grappa", max_length=40),
         return render(request, "error.html", status=422, message=ERRORS["invalid_selection"])
     config = make_site(site, model)
     context = dict(sites=SITE_PRESETS, models=MODELS, site=config, report=None,
-                   error=None, selected_day=day)
+                   error=None, selected_day=day, site_info=SITE_DETAILS.get(site))
     try:
         report = cache.get(config)
     except ForecastError as exc:

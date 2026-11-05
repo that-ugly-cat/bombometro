@@ -153,7 +153,7 @@ def build_report(site, payload, pressure):
 
 
 class ForecastCache:
-    """At most ten fixed site/model keys; coalesce fetches and back off failures."""
+    """Bounded by configured site/model keys; coalesce fetches and back off failures."""
 
     def __init__(self, fetcher=fetch_public, clock=monotonic):
         self.fetcher = fetcher

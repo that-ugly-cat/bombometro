@@ -25,6 +25,17 @@ function openHour() {
 }
 window.addEventListener("hashchange", openHour);
 openHour();
+function openSiteSources() {
+  if (location.hash === "#site-sources") {
+    const notes = document.getElementById("site-sources");
+    if (notes) notes.open = true;
+  }
+}
+window.addEventListener("hashchange", openSiteSources);
+openSiteSources();
+document.querySelectorAll('a[href="#site-sources"]').forEach(link => {
+  link.addEventListener("click", () => { document.getElementById("site-sources").open = true; });
+});
 document.querySelectorAll('.hour-link[href^="#hour-"]').forEach(link => {
   link.addEventListener("click", () => {
     const target = document.getElementById(link.hash.slice(1));

@@ -20,7 +20,8 @@ advisor. Install the web version with `uv`, not the legacy requirements file.
 
 ## Included
 
-- Grappa and Cavallaria; five original model choices; up to five forecast days.
+- Grappa, Cavallaria and the experimental Meduno / Monte Valinis preset;
+  five original model choices; up to five forecast days.
 - Day classifications, model windows, sunrise/noon/sunset, hourly veto reasons.
 - SVG verdict faces and a matching set of regime icons in day cards, the timeline,
   chart tooltips and hourly evidence. Hover, focus or tap a regime control for its
@@ -63,6 +64,30 @@ The existing upstream compose file belongs to the old deployment. It is not a
 deployment recipe for this preview. See [DEPLOY.md](DEPLOY.md).
 
 ## Data and model limitations
+
+### Meduno / Monte Valinis
+
+Added on 5 November 2026. The launch-area coordinates are converted from the
+[municipal page](https://www.medunoinvolo.it/it/c/869321/il-monte-valinis) and
+[Adventure school's site page](https://scuolaparapendioadventure.it/dovevoliamo):
+46°13′49.93″ N, 12°48′23.73″ E → 46.230536, 12.806592.
+
+The initial south-facing sector is **a modelling assumption**, 180° ± 45°, not a
+verified operating envelope. Numerical thresholds and the Innsbruck–Bolzano
+pressure proxy are inherited from Grappa, **not locally calibrated**. The sources
+disagree on launch elevation: Adventure says 1,100 m; [Paragliding Map](https://www.paraglidingmap.com/regions/meduno)
+distinguishes a 975 m main launch and a 1,088 m summit launch. No single launch
+height is asserted or injected into the weather request. The catalogue warns
+about easterly flow/turbulence; the engine has no dedicated Bora veto. The nominal
+925 hPa level is below both reported launch heights.
+
+The UI shows the experimental warning before the forecasts, plus sourced notes
+and links to the operator's FlyCard/LI-R427 information. These do not replace
+current local permissions, airspace or NOTAM checks. `site_details.py` holds the
+notes outside the legacy `SiteConfig` schema. The old two presets and scoring
+formulas were not changed.
+
+### General limitations
 
 The original scoring arithmetic is not validated by this conversion. In particular,
 the thermal attenuation of foehn remains an inherited heuristic. Pressure levels
