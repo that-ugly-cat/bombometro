@@ -32,7 +32,7 @@
     "latitude": 46.230536,
     "longitude": 12.806592,
     "timezone": "Europe/Rome",
-    "launch_dir_center_deg": 180.0,
+    "launch_dir_center_deg": 225.0,
     "launch_dir_tolerance_deg": 45.0,
     "launch_wind_min_kmh": 0.0,
     "launch_wind_max_kmh": 20.0,

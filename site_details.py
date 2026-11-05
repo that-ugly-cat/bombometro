@@ -6,8 +6,8 @@ SITE_DETAILS = {
         "checked_on": "2026-11-05",
         "warning": (
             "Experimental site preset: numerical limits and the Innsbruck–Bolzano pressure "
-            "proxy are inherited from Grappa, not locally calibrated. The SE–SW sector is "
-            "an initial modelling choice, not a verified operating envelope."
+            "proxy are inherited from Grappa, not locally calibrated. The S–SW–W wind-from "
+            "sector (180°–270°) was supplied and confirmed by the owner on 5 November 2026."
         ),
         "notes": [
             ("Coordinates", "The municipality's Meduno in Volo page and Adventure school both give "
@@ -17,9 +17,15 @@ SITE_DETAILS = {
              "lists the main launch at 975 m and a separate summit launch at 1,088 m. These are "
              "not interchangeable measurements. No single surveyed launch height is asserted or "
              "sent as an elevation override to Open-Meteo; its returned grid height remains separate."),
-            ("Initial wind sector", "Paragliding Map describes southerly wind at launch and warns "
+            ("Owner-confirmed wind sector", "On 5 November 2026 the owner annotated the launch "
+             "directions on a map and explicitly confirmed that north is at the top. The "
+             "south–southwest–west sector replaces the initial SE–SW assumption: wind from "
+             "180° through 270°, configured as 225° ± 45°. These are wind-from bearings; "
+             "do not reverse them like the downwind arrows in the wind table. This confirms "
+             "the sector, not the numerical wind/gust limits or suitability of a particular hour."),
+            ("Easterly-flow warning", "Paragliding Map describes southerly wind at launch and warns "
              "that easterly flow away from launch can become turbulent even when launch wind "
-             "appears southerly. The initial 180° ± 45° sector is an unvalidated approximation. "
+             "appears southerly. "
              "The current engine has no dedicated Bora/easterly-flow veto."),
             ("Inherited thresholds", "Wind, gust, precipitation, cloud and foehn thresholds are "
              "copied from the existing Grappa preset. They are software heuristics, not locally "

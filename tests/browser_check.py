@@ -191,6 +191,8 @@ with sync_playwright() as p:
     page.wait_for_url("**/app?site=Meduno&model=icon_eu", wait_until="networkidle", timeout=90000)
     assert "MEDUNO" in page.locator(".day-overview").inner_text()
     assert "not locally calibrated" in page.locator(".site-warning").inner_text()
+    assert "180°–270°" in page.locator(".site-warning").inner_text()
+    assert "225° ± 45°" in page.locator(".configuration").text_content()
     page.locator('a[href="#site-sources"]').click()
     assert page.locator("#site-sources").get_attribute("open") is not None
     assert "975 m" in page.locator("#site-sources").inner_text()

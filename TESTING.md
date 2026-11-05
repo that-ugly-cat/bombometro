@@ -211,3 +211,21 @@ Bastian (gpt-6.1-sol) reviewed the preset, disclosures and the three source page
 read-only: no concrete concealed limitation found. His review did not validate
 meteorological thresholds, certify local permissions, or run tests. Those limits
 remain explicit in the application and README.
+
+## Follow-up: owner-confirmed Meduno launch sector
+
+5 November 2026 · Ono · dedalo · gpt-6-astra-fast
+
+The owner supplied an annotated launch-area image and explicitly confirmed north
+at the top. Its S–SW–W directions replace the initial inferred SE–SW sector.
+Only Meduno's centre changes, 180° → 225°; tolerance stays 45°, so wind-from
+bearings 180°–270° pass the direction check. Other limits, presets and core.py
+are unchanged. The screenshot itself was not copied into the repository.
+
+The updated tests first reproduced four failures against the old configuration,
+including rejection of west and acceptance of southeast. **124 tests now pass**;
+direction cases cover both inclusive boundaries, just-outside values, the centre,
+north/east/southeast/northwest and 360°. Restarted the preview to discard the old
+in-memory site configuration and forecast cache. The live Chromium suite passes,
+including the visible 180°–270° disclosure and 225° ± 45° configuration, in
+addition to the existing responsive, tooltip and navigation checks.
